@@ -1,0 +1,79 @@
+{
+    "Api": {
+        "AccessTokenFilePath": "../../../Tokens/FlatTrade.AccessToken.Token.Common",
+        "Key": "36f05c4ff6134151b7a79250e3035a49",
+        "Secret": "2025.fe64cd6c846d4f6e9123461802ae50b4b377cfa4c67b100c",
+        "RedirectUrl": "http://localhost:9001/FlatTradeBroker/"
+    },
+    "Database": {
+        "ConnectionString": "Server=dbserver\\appdb,1436;Database=TradingApplication;Integrated Security = True; TrustServerCertificate=True;"
+    },
+
+    "ExchangeGenerator": {
+        "WriteBatchSizeInDb": 5000,
+        "CsvFilePath": "../../../CsvData/Exchanges.csv",
+        "ChannelCapacity": 1,
+        "Enabled": false
+    },
+
+    "StockInstrumentGenerator": {
+        "WriteBatchSizeInDb": 5000,
+        "InterestedExchanges": [ "NSE", "BSE" ],
+        "InterestedInstrumentNamesInExchanges": [ "A", "B", "EQ" ],
+        "CsvFilePath": "../../../CsvData/Stocks.csv",
+        "ChannelCapacity": 1,
+        "UseLocalCacheFile": false,
+        "Enabled": true
+    },
+
+    "StocksOhlcvGenerator": {
+        "WriteBatchSizeInDb": 5000,
+        "CsvFilePathPrefix": "../../../CsvData/StocksOhlcv",
+        "ListOfTradingSymbols": [],
+        "ChannelCapacity": 5000,
+        "DefaultStartDateIfMissing": 5,
+        "StartDate": "",
+        "OneMinutePricesEnabled": true,
+        "DateBatchSizeForOneMinutePrices": 10,
+        "DailyPricesEnabled": true,
+        "DateBatchSizeForDailyPrices": 10,
+        "Enabled": false
+    },
+
+    "Serilog": {
+        "Using": [
+            "Serilog.Sinks.Console",
+            "Serilog.Sinks.File",
+            "Serilog.Enrichers.Thread"
+        ],
+        "MinimumLevel": {
+            "Default": "Debug",
+            "Override": {
+                "Microsoft": "Warning",
+                "System": "Warning"
+            }
+        },
+        "WriteTo": [
+            {
+                "Name": "Console",
+                "Args": {
+                    "outputTemplate": "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}"
+                }
+            },
+            {
+                "Name": "File",
+                "Args": {
+                    "path": "../../../Logs/StrategyEngine.log",
+                    "rollingInterval": "Day",
+                    "retainedFileCountLimit": 7,
+                    "fileSizeLimitBytes": 104857600,
+                    "outputTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj}{NewLine}{Exception}"
+                }
+            }
+        ],
+        "Enrich": [
+            "FromLogContext",
+            "WithThreadId"
+        ]
+    }
+}

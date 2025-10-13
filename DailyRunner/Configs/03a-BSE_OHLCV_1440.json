@@ -1,0 +1,79 @@
+{
+	"Api":{
+		"AccessTokenFilePath":"../../../Tokens/FlatTrade.AccessToken.Token.BSE_OHLCV",
+		"Key":"d5c717d953e1425ead518ad9120d69c2",
+		"Secret":"2025.53811d212a2d41e9b9a51fe602f1f89251558278c9dba50c",
+		"RedirectUrl":"http://localhost:9001/FlatTradeBroker/"
+	},
+	"Database": {
+        "ConnectionString": "Server=dbserver\\appdb,1436;Database=TradingApplication;Integrated Security = True; TrustServerCertificate=True;"
+    },
+
+    "ExchangeGenerator": {
+        "WriteBatchSizeInDb": 5000,
+        "CsvFilePath": "../../../CsvData/Exchanges.csv",
+        "ChannelCapacity": 1,
+        "Enabled": false
+    },
+
+    "StockInstrumentGenerator": {
+        "WriteBatchSizeInDb": 5000,
+        "InterestedExchanges": [ "BSE" ],
+        "InterestedInstrumentNamesInExchanges": [ "A", "B", "EQ" ],
+        "CsvFilePath": "../../../CsvData/Stocks.csv",
+        "ChannelCapacity": 1,
+        "UseLocalCacheFile": true,
+        "Enabled": true
+    },
+
+    "StocksOhlcvGenerator": {
+        "WriteBatchSizeInDb": 5000,
+        "CsvFilePathPrefix": "../../../CsvData/StocksOhlcv",
+        "ListOfTradingSymbols": [],
+        "ChannelCapacity": 5000,
+		"DefaultStartDateIfMissing":10,
+        "StartDate": "",
+        "OneMinutePricesEnabled": false,
+        "DateBatchSizeForOneMinutePrices": 30,
+        "DailyPricesEnabled": true,
+        "DateBatchSizeForDailyPrices": 30,
+        "Enabled": true
+    },
+
+    "Serilog": {
+        "Using": [
+            "Serilog.Sinks.Console",
+            "Serilog.Sinks.File",
+            "Serilog.Enrichers.Thread"
+        ],
+        "MinimumLevel": {
+            "Default": "Information",
+            "Override": {
+                "Microsoft": "Warning",
+                "System": "Warning"
+            }
+        },
+        "WriteTo": [
+            {
+                "Name": "Console",
+                "Args": {
+                    "outputTemplate": "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}"
+                }
+            },
+            {
+                "Name": "File",
+                "Args": {
+                    "path": "../../../Logs/DailyRunner-03a-BSE_OHLCV_1440.log",
+                    "rollingInterval": "Day",
+                    "retainedFileCountLimit": 7,
+                    "fileSizeLimitBytes": 104857600,
+                    "outputTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj}{NewLine}{Exception}"
+                }
+            }
+        ],
+        "Enrich": [
+            "FromLogContext",
+            "WithThreadId"
+        ]
+    }
+}

@@ -1,0 +1,33 @@
+﻿{
+    "Providers": [
+        {
+            "Name": "Groww",
+            "InstrumentType": "Stocks",
+            "RecordType": "HistoricPrice",
+            "ListOfIntervals": [ 1440 ],
+            "ConnectionUrl": "https://groww.in/v1/api/charting_service/v4/chart/exchange/{exchange}/segment/CASH/{instrument}?endTimeInMillis={endtimeinms}&intervalInMinutes={interval}&startTimeInMillis={starttimeinms}",
+            "Exchange": "NSE",
+            "ListOfInstruments": [ "KSOLVES", "HUBTOWN" ,"WALCHANNAG"],
+            "Enabled": true,
+            "StartDate": "01-01-2025",
+            "EndDate": "09-06-2025",
+            "ListOfWriters": [
+                {
+                    "Name": "CsvWriter",
+                    "FilePath": "./",
+                    "Enabled": true
+                }                
+                ,{
+                    "Name": "DbWriter",
+                    "ConnectionString": "abcd",
+                    "Enabled": true
+                },
+                {
+                    "Name": "MulticastWriter",
+                    "Address": "23.2.4.2",
+                    "Enabled": true
+                }
+            ]
+        }
+    ]
+}

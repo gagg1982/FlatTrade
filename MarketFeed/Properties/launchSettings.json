@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "MarketFeed": {
+      "commandName": "Project",
+      "commandLineArgs": "Stock_HistoricPrice.json"
+    }
+  }
+}

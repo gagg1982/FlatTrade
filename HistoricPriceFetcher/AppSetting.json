@@ -1,0 +1,56 @@
+{
+    "StartDate": "",    // if empty, it will pick current date
+    "EndDate": "",      // this is always excluded
+
+    "Provider": [
+        {
+            "Name": "Groww",
+            "InstrumentType": "Stock",
+            "Exchange": "NSE",
+            "Endpoint": "",
+            "InstrumentList": [],
+            "Interval": [ 5, 10, 15 ],
+        },
+        {
+            "Name": "Groww",
+            "InstrumentType": "Stock",
+            "Exchange": "BSE",
+            "Endpoint": "",
+            "InstrumentList": [],
+            "Interval": [ 5, 10, 15 ]
+        },
+        {
+            "Name": "MoneyControl",
+            "InstrumentType": "Stock",
+            "Exchange": "NSE",
+            "Endpoint": "",
+            "InstrumentList": [],
+            "Interval": [ 5, 10, 15 ]
+        }
+    ],
+
+
+    "Output": {
+
+        "CsvWriter": {
+            "Enabled": false,
+            "Settings": {
+                "Path": ""
+            }
+        },
+
+        "DbWriter": {
+            "Enabled": false,
+            "Settings": {
+                "ConnectionString": ""
+            }
+        },
+
+        "NetworkPublisher": {
+            "Enabled": false,
+            "Settings": {
+
+            }
+        }
+    }
+}

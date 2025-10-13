@@ -1,0 +1,177 @@
+{
+    "Api": {
+        "AccessTokenFilePath": "../../../Tokens/FlatTrade.AccessToken.Token.Common",
+        "Key": "36f05c4ff6134151b7a79250e3035a49",
+        "Secret": "2025.fe64cd6c846d4f6e9123461802ae50b4b377cfa4c67b100c",
+        "RedirectUrl": "http://localhost:9001/FlatTradeBroker/",
+        "Throttling": {
+            "RateLimiter": {
+                "GlobalCallsPerSec": 20,
+                "GlobalCallsPerMin": 660,
+                "SleepForXMilliSecondsIfBreached": 50,
+
+                "PerApiCalls": {
+                    "GetSecurityInfoAsync": {
+                        "CallsPerSec": 20,
+                        "CallsPerMin": 120
+                    },
+                    "GetQuotesAsync": {
+                        "CallsPerSec": 20,
+                        "CallsPerMin": 660
+                    },
+                    "GetLinkedScripsAsync": {
+                        "CallsPerSec": 20,
+                        "CallsPerMin": 660
+                    }
+                }
+            },
+            "ConcurrencyOnOutstanding": {
+                "GlobalCallsPerSec": 12,
+                "GlobalCallsPerMin": 120,
+                "PerApiCalls": {
+                    "GetSecurityInfoAsync": {
+                        "CallsPerSec": 12,
+                        "CallsPerMin": 115
+                    },
+                    "GetQuotesAsync": {
+                        "CallsPerSec": 10,
+                        "CallsPerMin": 80
+                    }
+                }            
+            }
+        }
+    },
+
+    "Database": {
+        "ConnectionString": "Server=dbserver\\appdb,1436;Database=TradingApplication;Integrated Security = True; TrustServerCertificate=True;"
+    },
+
+    "ExchangeGenerator": {
+        "Enabled": true,
+
+        "WriteToFile": {
+            "Enabled": true,
+            "ChannelCapacity": 5,
+            "CsvFilePath": "../../../CsvData/"
+        },
+        "WriteToDb": {
+            "Enabled": true,
+            "ChannelCapacity": 5,
+            "WriteBatchSizeInDb": 5000
+        }
+    },
+
+    "StockInstrumentGenerator": {
+        "Enabled": true,
+        "InterestedExchanges": [ "NSE", "BSE" ],
+        "InterestedInstrumentNamesInExchanges": [ "A", "B", "EQ" ],
+
+        "WriteToDb": {
+            "ChannelCapacity": 5000,
+            "Enabled": true,
+            "WriteBatchSizeInDb": 5000
+        },
+        "WriteToFile": {
+            "ChannelCapacity": 5000,
+            "Enabled": true,
+            "CsvFilePath": "../../../CsvData/"
+        }
+    },
+
+    "StocksOhlcvGenerator": {
+        "ListOfTradingSymbols": [],
+
+        "DefaultStartDateIfMissing": 9,
+        "StartDate": "",
+        "DateBatchSizeForOneMinutePrices": 10,
+        "DateBatchSizeForDailyPrices": 10,
+        "DailyPricesEnabled": true,
+        "OneMinutePricesEnabled": true,
+
+        "Enabled": true,
+
+        "WriteToFile": {
+            "Enabled": false,
+            "ChannelCapacity": 5000,
+            "CsvFilePath": "../../../CsvData/StocksOhlcv/"
+        },
+        "WriteToDb": {
+            "Enabled": true,
+            "ChannelCapacity": 5000,
+            "WriteBatchSizeInDb": 5000
+        }
+    },
+
+    "BookKeeping": {
+        "Enabled": true,
+
+        "WriteToFile": {
+            "Enabled": true,
+            "ChannelCapacity": 5000,
+            "CsvFilePath": "../../../CsvData/BookKeeping/"
+        },
+        "WriteToDb": {
+            "Enabled": true,
+            "ChannelCapacity": 5000,
+            "WriteBatchSizeInDb": 5000
+        }
+    },
+
+    "CorporateActionsGenerator": {
+        "Enabled": true,
+        "StartDate": "01-01-2025",
+        "AdvanceDays": 30,
+        "ExcludedCA": [],
+
+        "NseCaUrl": "https://www.nseindia.com/api/corporates-corporateActions?index=equities&from_date=[from_date]&to_date=[to_date]",
+        "BseCaUrl": "https://www.nseindia.com/api/corporates-corporateActions?index=equities&from_date=[from_date]&to_date=[to_date]",        
+
+        "WriteToFile": {
+            "Enabled": true,
+            "ChannelCapacity": 5,
+            "CsvFilePath": "../../../CsvData/CorporateActionsGenerator/"
+        },
+        "WriteToDb": {
+            "Enabled": true,
+            "ChannelCapacity": 5,
+            "WriteBatchSizeInDb": 50000
+        }
+    },
+
+    "Serilog": {
+        "Using": [
+            "Serilog.Sinks.Console",
+            "Serilog.Sinks.File",
+            "Serilog.Enrichers.Thread"
+        ],
+        "MinimumLevel": {
+            "Default": "Information",
+            "Override": {
+                "Microsoft": "Warning",
+                "System": "Warning"
+            }
+        },
+        "WriteTo": [
+            {
+                "Name": "Console",
+                "Args": {
+                    "outputTemplate": "[{Timestamp:HH:mm:ss.fff} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}"
+                }
+            },
+            {
+                "Name": "File",
+                "Args": {
+                    "path": "../../../Logs/DailyRunner-02-StockInstruments.log",
+                    "rollingInterval": "Day",
+                    "retainedFileCountLimit": 7,
+                    "fileSizeLimitBytes": 104857600,
+                    "outputTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj}{NewLine}{Exception}"
+                }
+            }
+        ],
+        "Enrich": [
+            "FromLogContext",
+            "WithThreadId"
+        ]
+    }
+}
