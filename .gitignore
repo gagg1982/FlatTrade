@@ -21,3 +21,13 @@
 /StrategyEngine/Logs
 /StrategyEngine/obj
 /.vs/slnx.sqlite
+/FlatTrade.Test/obj/Debug/net8.0
+/FlatTrade.Test/obj/Release/net8.0
+/FlatTrade.Test/obj
+/HistoricPriceFetcher/obj/Debug/net8.0
+/HistoricPriceFetcher/obj/Release/net8.0
+/MarketFeed/obj
+/.vs/TradingApplicationabcd
+/.vs
+/FlatTrade.Test/bin/Debug/net8.0
+/FlatTrade.Test/bin/Release/net8.0

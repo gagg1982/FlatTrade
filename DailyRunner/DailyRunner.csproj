@@ -21,10 +21,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FlatTrade\FlatTrade.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Update="AppConfig.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -32,6 +28,10 @@
 
   <ItemGroup>
     <Folder Include="Logs\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FlatTrade\FlatTrade.csproj" />
   </ItemGroup>
 
 </Project>
