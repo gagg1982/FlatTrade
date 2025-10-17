@@ -31,3 +31,5 @@
 /.vs
 /FlatTrade.Test/bin/Debug/net8.0
 /FlatTrade.Test/bin/Release/net8.0
+/DailyRunner/Tokens/FlatTrade.AccessToken.Token.Common
+*.Common
