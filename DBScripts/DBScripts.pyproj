@@ -33,7 +33,7 @@
     <Content Include="01-Tables\02-Base.sql" />
     <Content Include="01-Tables\03-Data.sql" />
     <Content Include="05-StoredProcedures\sp_SanityOnDailyCandles.sql" />
-    <Content Include="05-StoredProcedures\sp_sp_GeneratePAndLSummary.sql" />
+    <Content Include="05-StoredProcedures\sp_GeneratePAndLSummary.sql" />
     <Content Include="05-StoredProcedures\sp_UpsertExchanges.sql" />
     <Content Include="05-StoredProcedures\sp_UpsertHoldings.sql" />
     <Content Include="05-StoredProcedures\sp_UpsertMarginEquity.sql" />

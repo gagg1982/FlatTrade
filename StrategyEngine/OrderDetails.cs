@@ -102,9 +102,6 @@ namespace StrategyEngine
                 }
             }
 
-            if (_onStrategyEvents is not null)
-                await _onStrategyEvents(new StrategyEvent { EventType = StrategyEngineEventType.Orders });
-
             if (isCompleted)
             {
                 List<Task> tasks = [];

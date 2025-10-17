@@ -3,13 +3,14 @@ namespace StrategyEngine.Model
 {
     internal enum StrategyEngineEventType
     {
-        Holdings,
-        Trades,
+        //Holdings,
+        //Trades,
+        //Orders,
+        //Positions,
+        //Securities,
+
         Candles,
-        Orders,
-        Positions,
         Quotes,
-        Securities,
         TouchLine,
     }
 }

@@ -15,6 +15,7 @@ BEGIN
        AND target.Exchange   = src.Exchange
        AND target.ReportType = src.ReportType
        AND target.KidId = src.KidId
+       AND target.FillId = src.FillId
        AND target.InternalOrderStatus = src.InternalOrderStatus
     WHEN MATCHED THEN
         UPDATE SET
@@ -27,7 +28,6 @@ BEGIN
             target.ProductDisplayName       = src.ProductDisplayName,
             target.FillQuantity             = src.FillQuantity,
             target.FillPrice                = src.FillPrice,
-            target.FillId                   = src.FillId,
             target.Quantity                 = src.Quantity,
             target.Price                    = src.Price,
             target.ProductType              = src.ProductType,
@@ -171,9 +171,10 @@ BEGIN
 
         DECLARE @ErrorNumber INT = ERROR_NUMBER()
         BEGIN
-           declare @message nvarchar(max) = N'An error occurred while merging [Exchanges]. ' + ERROR_MESSAGE()
+           declare @message nvarchar(max) = N'An error occurred while merging [SingleOrderHistory]. ' + ERROR_MESSAGE()
            ; THROW 51000, @message, 1
         END
     END CATCH
 END;
 GO
+

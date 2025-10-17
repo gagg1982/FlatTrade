@@ -7,22 +7,24 @@ CREATE OR ALTER PROCEDURE sp_GeneratePAndLSummary
 AS
 BEGIN
     SET NOCOUNT ON
-
     ;WITH BaseData AS
      (
-        SELECT
-            o.Token,
-            o.TradingSymbol,
-            CAST(o.NorenTime AS date) AS OrderDate,
+         SELECT
+            t.Token,
+            t.TradingSymbol,
+            t.NorenOrderNumber,
+            CAST(t.NorenTime AS date) AS OrderDate,
             t.TransactionType,
-            CAST(t.FillQuantity AS int) AS FillQuantity,
-            t.FillPrice AS FillTradePrice,
-            CASE WHEN o.ProductType != 'Delivery' THEN 'Intraday' ELSE o.ProductType END AS ProductType
-        FROM orderbook o
-        LEFT JOIN TradeBook t
-            ON o.NorenOrderNumber = t.NorenOrderNumber
-        WHERE o.OrderStatus = 'Completed'
-    ),
+            cast(sum(isnull(t.FillQuantity,0)) AS int) AS FillQuantity,
+            sum(t.FillQuantity * t.FillPrice)/ sum(t.FillQuantity) as FillTradePrice,
+            CASE WHEN t.ProductType != 'Delivery' THEN 'Intraday' ELSE t.ProductType END AS ProductType
+        FROM TradeBook t
+        WHERE (@orderDate is null  OR  CAST(t.NorenTime AS date) = @orderDate) 
+        group by token, TradingSymbol, CAST(t.NorenTime AS date), TransactionType, 
+        CASE WHEN t.ProductType != 'Delivery' THEN 'Intraday' ELSE t.ProductType END,
+        NorenOrderNumber
+    )
+    ,
     TradeSummary AS (
     SELECT 
         Token,

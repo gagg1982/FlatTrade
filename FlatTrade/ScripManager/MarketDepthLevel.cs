@@ -2,9 +2,9 @@
 {
     public class MarketDepthLevel
     {
-        public decimal Price { get; set; }
-        public long Quantity { get; set; }
-        public int Orders { get; set; }
+        public decimal Price { get; set; } = -1;
+        public long Quantity { get; set; } = -1;
+        public int Orders { get; set; } = -1;
     }
 
 }

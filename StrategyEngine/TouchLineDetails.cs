@@ -75,57 +75,42 @@ namespace StrategyEngine
             return ok;
         }          
 
-        private void UpdateTouchLines(IEnumerable<TouchLineSubscriptionUpdates> touchLines)
+        private static void UpdateTouchLines(TouchLineSubscriptionRequestAck touchLineAck)
         {
-            //foreach (var touchLine in touchLines)
-            //{
-            //    var key = new KeyValuePair<Exchange, long>(touchLine.Exchange, touchLine.Token);
-            //    if (TouchLines.TryGetValue(key, out ConcurrentDictionary<ChartInterval, ConcurrentSortedList<TouchLineSubscriptionUpdates>>? value) && value is not null)
-            //    {
-            //        foreach (var interval in Intervals)
-            //        {
-            //            if (!value.TryGetValue(interval, out ConcurrentSortedList<TouchLineSubscriptionUpdates>? intervalList) || intervalList is null)
-            //            {
-            //                intervalList = new ConcurrentSortedList<TouchLineSubscriptionUpdates>(new TouchLineComparer());
-            //                value[interval] = intervalList;
-            //            }
-            //            var existingTouchLine = intervalList.Find(t => t.Timestamp == touchLine.Timestamp);
-            //            if (existingTouchLine is not null)
-            //            {
-            //                intervalList.Remove(existingTouchLine);
-            //            }
-            //            if (touchLine.Interval == interval)
-            //            {
-            //                intervalList.Add(touchLine);
-            //            }
-            //        }
-            //        value.Add(touchLine);
-            //    }
-            //    else
-            //    {
-            //        TouchLines[key] = [touchLine];
-            //    }
-            //}
+            var details = GlobalDataSet.Subscriptions.GetOrAdd(touchLineAck.Token, new SubscriptionDetails());
+            details.TouchLineSubscription.AddOrUpdate(touchLineAck.Exchange, touchLineAck, (_,_) => touchLineAck);
+        }
+
+        private static TouchLineSubscriptionRequestAck UpdateTouchLines(TouchLineSubscriptionUpdates touchLineUpdate)
+        {
+            var newTouchLineUpdate = new TouchLineSubscriptionRequestAck
+            { 
+                Token = touchLineUpdate.Token,
+                Exchange = touchLineUpdate.Exchange,
+            };
+            newTouchLineUpdate.Update(touchLineUpdate);
+
+            var details = GlobalDataSet.Subscriptions.GetOrAdd(touchLineUpdate.Token, new SubscriptionDetails());
+            return details.TouchLineSubscription.AddOrUpdate(touchLineUpdate.Exchange, newTouchLineUpdate, (key, existingValue) => existingValue.Update(touchLineUpdate));            
         }
 
         private async Task OnTouchLineUpdates(TouchLineSubscriptionUpdates Object)
         {
             if (Object is not null)
             {
-                //var orderInfo = OrderInfo.ConvertFrom(Object);
-                //if (orderInfo is not null)
-                //    await UpdateOrderBook([orderInfo]);
+                var update = UpdateTouchLines(Object);
                 if (_onStrategyEvents is not null)
                     await _onStrategyEvents(new StrategyEvent
                     {
                         EventType = StrategyEngineEventType.TouchLine,
-                        TradingSymbol = Object.TradingSymbol,
-                        Token = Object.Token
+                        Exchange = update.Exchange,
+                        Token = update.Token,
+                        TradingSymbol = update.TradingSymbol,
                     });
             }
         }
 
-        private async Task OnTouchLineUpdates(object? _, SubscriptionType subscriptionType, string rawMessage, object? subscriptionObject)
+        private Task OnTouchLineUpdates(object? _, SubscriptionType subscriptionType, string rawMessage, object? subscriptionObject)
         {
             var msg = string.Format($": Message processed: '{rawMessage}'");
 
@@ -133,26 +118,26 @@ namespace StrategyEngine
             {
                 case SubscriptionType.ConnectAck:
                     _logger.LogInformation("[OnTouchLineUpdates-ConnectAck] {msg}", msg);
-                    //UpdateTouchLines(touchLineDetails);
-                    await SubscribeTouchLineAsync(_subscribedSymbols);
+                    SubscribeTouchLineAsync(_subscribedSymbols).GetAwaiter().GetResult();
                     break;
                 case SubscriptionType.SubscribeTouchLineAck:
-                    _logger.LogInformation("[OnTouchLineUpdates-SubscribeTouchLineAck] {msg}", msg);
-                    //UpdateTouchLines([(TouchLineSubscriptionUpdates)subscriptionObject!]);
+                    _logger.LogInformation("[OnTouchLineUpdates-SubscribeTouchLineAck] {msg}", msg);                    
+                    UpdateTouchLines((TouchLineSubscriptionRequestAck)subscriptionObject!);
                     break;
                 case SubscriptionType.UnsubscribeTouchLineAck:
                     _logger.LogInformation("[OnTouchLineUpdates-UnSubscribeTouchLineAck] {msg}", msg);
-                    await UnSubscribeTouchLineAsync(_subscribedSymbols);
+                    UnSubscribeTouchLineAsync(_subscribedSymbols).GetAwaiter().GetResult();
                     break;
                 case SubscriptionType.SubscribeTouchLineUpdates:
                     _logger.LogInformation("[OnTouchLineUpdates-SubscribeTouchLineUpdates] {msg}", msg);
                     if (subscriptionObject is TouchLineSubscriptionUpdates Object)
-                        await _queue.WriteAsync(Object);
+                        _queue.WriteAsync(Object).GetAwaiter().GetResult();
                     break;
                 default:
                     _logger.LogWarning("[OnTouchLineUpdates]: unknown message type '{type}' Msg '{msg}'", subscriptionType, msg);
                     break;
             }
+            return Task.CompletedTask;
         }
 
         public void Dispose()

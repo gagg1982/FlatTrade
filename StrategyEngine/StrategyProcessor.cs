@@ -72,11 +72,11 @@ namespace StrategyEngine
 
             _logger.LogInformation("[7] Initializing TouchLines");
             _touchLineDetails = new(_api, OnUpdates, _loggerFactory);
-            //taskList.Add(_touchLineDetails.SubscribeTouchLineAsync(selectSymbolsFortrading));
+            taskList.Add(_touchLineDetails.SubscribeTouchLineAsync(selectSymbolsFortrading));
 
             _logger.LogInformation("[8] Initializing Quotes With Market Depth");
             _quoteDetails = new(_api, OnUpdates, _loggerFactory);
-            //taskList.Add(_quoteDetails.SubscribeQuoteAsync(selectSymbolsFortrading));           
+            taskList.Add(_quoteDetails.SubscribeQuoteAsync(selectSymbolsFortrading));           
 
             //ReadConfigFile(configFile);
             //ReadRMSRules(configFile);

@@ -1,14 +1,21 @@
 ﻿using FlatTrade.Common.Types.Base;
 using FlatTrade.HoldingsManager;
+using FlatTrade.SubscriptionManager.Quote;
+using FlatTrade.SubscriptionManager.TouchLine;
 using FlatTrade.TradeManager;
-
 using System.Collections.Concurrent;
 
 namespace StrategyEngine.Model
 {
+    public class SubscriptionDetails
+    {
+        public ConcurrentDictionary<Exchange, TouchLineSubscriptionRequestAck> TouchLineSubscription { get; set; } = [];
+        public ConcurrentDictionary<Exchange, QuoteSubscriptionRequestAck> QuoteSubscription { get; set; } = [];
+    }
     public class Details
     {
-        public Exchange Exchange { get; } 
+        
+
         // key noren order number        
         public ConcurrentDictionary<long, OrderInfo> OpenOrders { get; } = [];
         public ConcurrentDictionary<long, OrderInfo> ClosedOrders { get; } = [];
@@ -25,6 +32,7 @@ namespace StrategyEngine.Model
     {
         //key trading symbol
         public static ConcurrentDictionary<string, Details> Data { get; set; }  = [];
+        public static ConcurrentDictionary<long, SubscriptionDetails> Subscriptions { get; set; } = [];
     }
 
 

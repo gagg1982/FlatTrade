@@ -35,10 +35,10 @@ var throttler = new OutstandingThrottleInterceptor(config, loggerFactory);
 //=====================================================================
 
 
-Api api = new("9f0692ce836c4ac38fc46665496d1593",
-              "http://localhost:9001/FlatTradeBroker/",
-              "2025.4490c8154e9046c5aa0306b5c7f958baf6e3e1c66336f86b",
-              string.Empty,
+Api api = new(config["Api:Key"] ?? String.Empty,
+              config["Api:RedirectUrl"] ?? String.Empty,
+              config["Api:Secret"] ?? String.Empty,
+              config["Api:AccessTokenFilePath"] ?? String.Empty,
               loggerFactory,
               throttler); //apikey
 

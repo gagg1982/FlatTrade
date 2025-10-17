@@ -2,6 +2,7 @@
 using FlatTrade.Common.Types.Base;
 using FlatTrade.SubscriptionManager;
 using FlatTrade.SubscriptionManager.Quote;
+using FlatTrade.SubscriptionManager.TouchLine;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
 using StrategyEngine.Strategy;
@@ -74,59 +75,42 @@ namespace StrategyEngine
             return ok;
         }          
 
-        private void UpdateQuotes(IEnumerable<QuoteSubscriptionUpdates> touchLines)
+        private static QuoteSubscriptionRequestAck UpdateQuotes(QuoteSubscriptionUpdates quoteUpdate)
         {
-            //foreach (var touchLine in touchLines)
-            //{
-            //    var key = new KeyValuePair<Exchange, long>(touchLine.Exchange, touchLine.Token);
-            //    if (TouchLines.TryGetValue(key, out ConcurrentDictionary<ChartInterval, ConcurrentSortedList<TouchLineSubscriptionUpdates>>? value) && value is not null)
-            //    {
-            //        foreach (var interval in Intervals)
-            //        {
-            //            if (!value.TryGetValue(interval, out ConcurrentSortedList<TouchLineSubscriptionUpdates>? intervalList) || intervalList is null)
-            //            {
-            //                intervalList = new ConcurrentSortedList<TouchLineSubscriptionUpdates>(new TouchLineComparer());
-            //                value[interval] = intervalList;
-            //            }
-            //            var existingTouchLine = intervalList.Find(t => t.Timestamp == touchLine.Timestamp);
-            //            if (existingTouchLine is not null)
-            //            {
-            //                intervalList.Remove(existingTouchLine);
-            //            }
-            //            if (touchLine.Interval == interval)
-            //            {
-            //                intervalList.Add(touchLine);
-            //            }
-            //        }
-            //        value.Add(touchLine);
-            //    }
-            //    else
-            //    {
-            //        TouchLines[key] = [touchLine];
-            //    }
-            //}
+            var newQuoteUpdate = new QuoteSubscriptionRequestAck
+            {
+                Token = quoteUpdate.Token,
+                Exchange = quoteUpdate.Exchange,
+            };
+            newQuoteUpdate.Update(quoteUpdate);
+
+            var details = GlobalDataSet.Subscriptions.GetOrAdd(quoteUpdate.Token, new SubscriptionDetails());
+            return details.QuoteSubscription.AddOrUpdate(quoteUpdate.Exchange, newQuoteUpdate, (key, existingValue) => existingValue.Update(quoteUpdate));
+        }
+
+        private static void UpdateQuotes(QuoteSubscriptionRequestAck quoteUpdates)
+        {
+            var details = GlobalDataSet.Subscriptions.GetOrAdd(quoteUpdates.Token, new SubscriptionDetails());
+            details.QuoteSubscription.AddOrUpdate(quoteUpdates.Exchange, quoteUpdates, (_, _) => quoteUpdates);
         }
 
         private async Task OnQuoteUpdates(QuoteSubscriptionUpdates Object)
         {
             if (Object is not null)
             {
-                //var orderInfo = OrderInfo.ConvertFrom(Object);
-                //if (orderInfo is not null)
-                //    await UpdateQuotes([orderInfo]);
-
+                var update = UpdateQuotes(Object);
                 if (_onStrategyEvents is not null)
                     await _onStrategyEvents(new StrategyEvent
                     {
-                        EventType = StrategyEngineEventType.Quotes,
-                        TradingSymbol = Object.TradingSymbol,
-                        Exchange = Object.Exchange,
-                        Token = Object.Token
+                        EventType = StrategyEngineEventType.Quotes,                        
+                        Exchange = update.Exchange,
+                        Token = update.Token,
+                        TradingSymbol = update.TradingSymbol
                     });
             }
         }
 
-        private async Task OnQuoteUpdates(object? _, SubscriptionType subscriptionType, string rawMessage, object? subscriptionObject)
+        private Task OnQuoteUpdates(object? _, SubscriptionType subscriptionType, string rawMessage, object? subscriptionObject)
         {
             var msg = string.Format($": Message processed: '{rawMessage}'");
 
@@ -134,26 +118,26 @@ namespace StrategyEngine
             {
                 case SubscriptionType.ConnectAck:
                     _logger.LogInformation("[OnQuoteUpdates-ConnectAck] {msg}", msg);
-                    //UpdateQuotes(touchLineDetails);
-                    await SubscribeQuoteAsync(_subscribedSymbols);
+                    SubscribeQuoteAsync(_subscribedSymbols).GetAwaiter().GetResult();
                     break;
                 case SubscriptionType.SubscribeTouchLineAck:
                     _logger.LogInformation("[OnQuoteUpdates-SubscribeQuoteAck] {msg}", msg);
-                    //UpdateQuotes([(TouchLineSubscriptionUpdates)subscriptionObject!]);
+                    UpdateQuotes((QuoteSubscriptionRequestAck)subscriptionObject!);
                     break;
                 case SubscriptionType.UnsubscribeTouchLineAck:
                     _logger.LogInformation("[OnQuoteUpdates-UnSubscribeQuoteLineAck] {msg}", msg);
-                    await UnSubscribeQuoteAsync(_subscribedSymbols);
+                    UnSubscribeQuoteAsync(_subscribedSymbols).GetAwaiter().GetResult();
                     break;
                 case SubscriptionType.SubscribeTouchLineUpdates:
                     _logger.LogInformation("[OnQuoteUpdates-SubscribeQuoteUpdates] {msg}", msg);
                     if (subscriptionObject is QuoteSubscriptionUpdates Object)
-                        await _queue.WriteAsync(Object);
+                        _queue.WriteAsync(Object).GetAwaiter().GetResult();
                     break;
                 default:
                     _logger.LogWarning("[OnQuoteUpdates]: unknown message type '{type}' Msg '{msg}'", subscriptionType, msg);
                     break;
             }
+            return Task.CompletedTask;
         }
 
         public void Dispose()

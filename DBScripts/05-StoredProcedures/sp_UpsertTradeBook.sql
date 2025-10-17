@@ -119,7 +119,7 @@ BEGIN
 
         DECLARE @ErrorNumber INT = ERROR_NUMBER()
         BEGIN
-           declare @message nvarchar(max) = N'An error occurred while merging [Exchanges]. ' + ERROR_MESSAGE()
+           declare @message nvarchar(max) = N'An error occurred while merging [TradeBook]. ' + ERROR_MESSAGE()
            ; THROW 51000, @message, 1
         END
     END CATCH

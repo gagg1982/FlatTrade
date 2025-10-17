@@ -1,20 +1,18 @@
 ﻿namespace FlatTrade.SubscriptionManager
 {
     using Common.Transport;
-    using FlatTrade.Common.Throttle;
     using FlatTrade.SubscriptionManager.Alert;
     using FlatTrade.SubscriptionManager.Order;
     using FlatTrade.SubscriptionManager.Quote;
     using FlatTrade.SubscriptionManager.TouchLine;
     using Microsoft.Extensions.Logging;
     using Newtonsoft.Json;
-    using Newtonsoft.Json.Linq;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
 
     public class SubscriptionEventArgs(SubscriptionType subscriptionType, string rawMessage) : EventArgs
     {
-        public string RawMessage { get; } = rawMessage;
+        public string RawMessage { get; }= JsonConvert.DeserializeObject<string>(rawMessage.Replace("\n", "").Replace(" ",""))!;
         public SubscriptionType SubscriptionType { get; } = subscriptionType;
     }
 
@@ -132,14 +130,9 @@
                 return;
             }
 
-            if (_updateHandlers.TryGetValue(mesg.RequestType, out AsyncEventHandler<SubscriptionEventArgs>? handler) && handler != null)
+            if (_updateHandlers.TryGetValue(mesg.RequestType, out AsyncEventHandler<SubscriptionEventArgs>? handler) && handler is not null)
             {
-                if (handler is not null)
-                {
-                    var raw = JsonConvert.DeserializeObject<string>(message);
-                    await handler.Invoke(this, new SubscriptionEventArgs(mesg.RequestType, raw!));
-                }
-
+                await handler.Invoke(this, new SubscriptionEventArgs(mesg.RequestType, message!));                
                 return;
             }
 

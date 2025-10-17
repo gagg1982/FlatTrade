@@ -34,12 +34,6 @@ namespace StrategyEngine
                 var details = GlobalDataSet.Data.GetOrAdd(trade.TradingSymbol, _ => new());
                 details!.TradeInfo.AddOrUpdate(trade.Exchange, trade, (_, _) => trade);   //always replace            
             }
-
-            if(_onStrategyEvents is not null)
-                await _onStrategyEvents(new StrategyEvent
-                                            { 
-                                                EventType = StrategyEngineEventType.Trades                                                
-                                            });
         }
         
         public async Task UpdateHoldingDetails()
@@ -59,12 +53,6 @@ namespace StrategyEngine
                     details!.HoldingInfo.AddOrUpdate(exch.Exchange, holding, (key, existingValue) => holding);
                 }
             }
-
-            if (_onStrategyEvents is not null)
-                await _onStrategyEvents(new StrategyEvent
-                {
-                    EventType = StrategyEngineEventType.Holdings
-                });
         }
 
         public async Task UpdatePositions()
@@ -90,15 +78,9 @@ namespace StrategyEngine
                     details!.OpenPositions.AddOrUpdate(position.ProductType, position, (_, _) => position); //always update to latest
                 }
             }
-
-            if (_onStrategyEvents is not null)
-                await _onStrategyEvents(new StrategyEvent
-                {
-                    EventType = StrategyEngineEventType.Positions,
-                });
         }
 
-        private static ConcurrentDictionary<ChartInterval, IEnumerable<PriceCandle>> GenerateIntervalCandles(string tradingSymbol, Exchange exchange, IEnumerable<ChartInterval> chartIntervals, IEnumerable<TimePriceDataResponse> oneMinutePriceData)
+        private static ConcurrentDictionary<ChartInterval, IEnumerable<PriceCandle>> GenerateIntervalCandles(IEnumerable<ChartInterval> chartIntervals, IEnumerable<TimePriceDataResponse> oneMinutePriceData)
         {
             ConcurrentDictionary<ChartInterval, IEnumerable<PriceCandle>> resp = [];
             foreach (var timeInterval in chartIntervals)
@@ -128,14 +110,14 @@ namespace StrategyEngine
                         continue;
                     }
 
-                    var intervalCandles = GenerateIntervalCandles(tradingSymbol, exchange, chartIntervals, resp);
+                    var intervalCandles = GenerateIntervalCandles(chartIntervals, resp);
 
                     var details = GlobalDataSet.Data.GetOrAdd(tradingSymbol, _ => new Details());
                     var exchangeDict = details.PriceCandleInfo.GetOrAdd(exchange, _ => new());
 
                     foreach (var (interval, candles) in intervalCandles)
                     {
-                        var sortedSet = exchangeDict.GetOrAdd(interval, _ => new SortedSet<PriceCandle>());
+                        var sortedSet = exchangeDict.GetOrAdd(interval, _ => []);
 
                         lock (sortedSet)
                         {
@@ -190,12 +172,6 @@ namespace StrategyEngine
                 var details = GlobalDataSet.Data.GetOrAdd(scrip.TradingSymbol, _ => new());
                 details!.SecurityInfo.AddOrUpdate(scrip.Exchange, scrip, (_, _) => scrip);
             }
-
-            if (_onStrategyEvents is not null)
-                await _onStrategyEvents(new StrategyEvent
-                {
-                    EventType = StrategyEngineEventType.Securities,
-                });
         }
 
         private async Task<IEnumerable<PositionBookResponse>> GetPositionsFromServerAsync()
