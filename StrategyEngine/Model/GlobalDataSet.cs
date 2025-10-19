@@ -22,7 +22,7 @@ namespace StrategyEngine.Model
 
         public ConcurrentDictionary<ProductType, PositionBookResponse> OpenPositions { get; } = [];
         public ConcurrentDictionary<ProductType, PositionBookResponse> ClosedPositions { get; } = [];
-        public ConcurrentDictionary<Exchange, TradeBookResponse> TradeInfo { get; } = [];
+        public ConcurrentDictionary<Exchange, ConcurrentBag<TradeBookResponse>> TradeInfo { get; } = [];
         public ConcurrentDictionary<Exchange, HoldingsResponse> HoldingInfo { get; } = [];
         public ConcurrentDictionary<Exchange, ScripInfo> SecurityInfo { get; } = [];
         public ConcurrentDictionary<Exchange, ConcurrentDictionary<ChartInterval, SortedSet<PriceCandle>>> PriceCandleInfo { get; } = [];        

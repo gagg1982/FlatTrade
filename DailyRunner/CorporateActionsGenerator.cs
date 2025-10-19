@@ -63,7 +63,7 @@ namespace DailyRunner
                 var fileChannelCapacity = Convert.ToInt32(config["CorporateActionsGenerator:WriteToFile:ChannelCapacity"] ?? "5");
                 var filePath = config["CorporateActionsGenerator:WriteToFile:CsvFilePath"] ?? string.Empty;
                 if (string.IsNullOrEmpty(filePath))
-                    throw new ArgumentNullException(nameof(filePath), "CSV file path is not configured.");
+                    throw new InvalidDataException("CorporateActionsGenerator:WriteToFile:CsvFilePath is not configured.");
 
                 filePath = Path.GetFullPath(filePath);
                 _csvWriter = new CsvWriter(Path.GetDirectoryName(filePath!)!, fileChannelCapacity, nameof(CorporateActionsGenerator), loggerFactory);

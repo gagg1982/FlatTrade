@@ -14,12 +14,28 @@ using static StrategyEngine.StrategyProcessor;
 
 namespace StrategyEngine
 {
-    internal class DirectFromServer(Api api, OnStrategyEvents? onStrategyEvents, ILogger logger)
+    internal class DirectFromServer
     {
-        private readonly Api _api = api;
-        private readonly ILogger _logger = logger;
-        private readonly OnStrategyEvents? _onStrategyEvents = onStrategyEvents;
+        private readonly Api _api;
+        private readonly ILogger _logger;
 
+        private readonly ConcurrentDictionary<StrategyEngineEventType, OnStrategyEvents?> _directFromServerEvents = [];
+
+        private static readonly IEnumerable<StrategyEngineEventType> SupportedStrategyEngineEvents = [
+            StrategyEngineEventType.Securities, StrategyEngineEventType.Trades, StrategyEngineEventType.Positions,
+            StrategyEngineEventType.Holdings, StrategyEngineEventType.Candles];
+        
+        public DirectFromServer(Api api, Dictionary<StrategyEngineEventType, OnStrategyEvents> eventTypesSubscription, ILogger logger)
+        {
+            _api = api;
+            _logger = logger;
+
+            foreach(var (eventSubscription, onStrategyEvents) in eventTypesSubscription)
+            {
+                if(SupportedStrategyEngineEvents.Contains(eventSubscription))
+                    _directFromServerEvents.AddOrUpdate(eventSubscription, onStrategyEvents, (_,_) => onStrategyEvents);
+            }
+        }
         public async Task UpdateTradeDetails()
         {
             var trades = await GetTradeDetailsFromServerAsync();
@@ -32,10 +48,24 @@ namespace StrategyEngine
             foreach (var trade in trades!)
             {
                 var details = GlobalDataSet.Data.GetOrAdd(trade.TradingSymbol, _ => new());
-                details!.TradeInfo.AddOrUpdate(trade.Exchange, trade, (_, _) => trade);   //always replace            
+                details!.TradeInfo.AddOrUpdate(trade.Exchange, [trade], (_, existingValue) => 
+                    {
+                        lock (existingValue)
+                        {
+                            existingValue.Append(trade);
+                            return existingValue;
+                        }
+                    });   //always replace            
+
+                if (_directFromServerEvents.TryGetValue(StrategyEngineEventType.Trades, out var handler) && handler is not null)
+                    await handler(new StrategyEvent {   EventType = StrategyEngineEventType.Trades ,
+                                                        Exchange = trade.Exchange,
+                                                        Token = trade.Token,
+                                                        TradingSymbol = trade.TradingSymbol
+                                                    });
             }
         }
-        
+
         public async Task UpdateHoldingDetails()
         {
             var holdings = await GetHoldingDetailsFromServerAsync();
@@ -51,6 +81,15 @@ namespace StrategyEngine
                 {
                     var details = GlobalDataSet.Data.GetOrAdd(exch.TradingSymbol, _ => new());
                     details!.HoldingInfo.AddOrUpdate(exch.Exchange, holding, (key, existingValue) => holding);
+
+                    if (_directFromServerEvents.TryGetValue(StrategyEngineEventType.Holdings, out var handler) && handler is not null)
+                        await handler(new StrategyEvent
+                        {
+                            EventType = StrategyEngineEventType.Holdings,
+                            Exchange = exch.Exchange,
+                            Token = exch.Token,
+                            TradingSymbol = exch.TradingSymbol
+                        });
                 }
             }
         }
@@ -77,6 +116,13 @@ namespace StrategyEngine
                     details!.ClosedPositions.Remove(position.ProductType, out PositionBookResponse? _);
                     details!.OpenPositions.AddOrUpdate(position.ProductType, position, (_, _) => position); //always update to latest
                 }
+
+                if (_directFromServerEvents.TryGetValue(StrategyEngineEventType.Positions, out var handler) && handler is not null)
+                    await handler(new StrategyEvent { EventType = StrategyEngineEventType.Positions,
+                                                      Exchange = position.Exchange,
+                                                      Token = position.Token,
+                                                      TradingSymbol = position.TradingSymbol
+                                                    });
             }
         }
 
@@ -94,16 +140,15 @@ namespace StrategyEngine
             if(chartIntervals.Contains(ChartInterval.Daily))
                 _logger.LogWarning("Daily interval candles cannot be fetched using TimePriceData API. Continuing for rest of the intervals...");
 
-            var selectionProjection = selection.Select(a => new KeyValuePair<Exchange, string>(a.Exchange, a.TradingSymbol));
             List<Task> tasks = [];
             var initStartDate = DateTime.Now.Date.GetBusinessDaysAgo(lastXDaysCandle);
             var endDate = DateTime.Now;
             tasks.Add(Task.Run(async () =>
             {
-                foreach (var (exchange, tradingSymbol) in selectionProjection)
+                foreach (var item in selection)
                 {
-                    var (resp, msg) = await _api.MarketInfo.GetTimePriceDataAsync(exchange, tradingSymbol, initStartDate, endDate, ChartInterval.One);
-                    msg = $"{exchange} {tradingSymbol} OHLCV data ({(int)ChartInterval.One} min) for start date {initStartDate} and end date {endDate}. {msg}";
+                    var (resp, msg) = await _api.MarketInfo.GetTimePriceDataAsync(item.Exchange, item.TradingSymbol, initStartDate, endDate, ChartInterval.One);
+                    msg = $"{item.Exchange} {item.TradingSymbol} OHLCV data ({(int)ChartInterval.One} min) for start date {initStartDate} and end date {endDate}. {msg}";
                     if (resp is null || !resp.Any())
                     {
                         _logger.LogError("NOK: {msg}", msg);
@@ -112,8 +157,8 @@ namespace StrategyEngine
 
                     var intervalCandles = GenerateIntervalCandles(chartIntervals, resp);
 
-                    var details = GlobalDataSet.Data.GetOrAdd(tradingSymbol, _ => new Details());
-                    var exchangeDict = details.PriceCandleInfo.GetOrAdd(exchange, _ => new());
+                    var details = GlobalDataSet.Data.GetOrAdd(item.TradingSymbol, _ => new Details());
+                    var exchangeDict = details.PriceCandleInfo.GetOrAdd(item.Exchange, _ => new());
 
                     foreach (var (interval, candles) in intervalCandles)
                     {
@@ -139,23 +184,18 @@ namespace StrategyEngine
                             }
                         }
                     }
+
+                    if (_directFromServerEvents.TryGetValue(StrategyEngineEventType.Candles, out var handler) && handler is not null)
+                        await handler(new StrategyEvent
+                        {
+                            EventType = StrategyEngineEventType.Candles,
+                            Exchange = item.Exchange,
+                            Token = item.Token,
+                            TradingSymbol = item.TradingSymbol
+                        });
                 }
             }));
-            await Task.WhenAll(tasks);
-
-            if (_onStrategyEvents is not null)
-            {
-                foreach (var sel in selection)
-                {
-                    await _onStrategyEvents(new StrategyEvent
-                    {
-                        EventType = StrategyEngineEventType.Candles,
-                        TradingSymbol = sel.TradingSymbol,
-                        Exchange = sel.Exchange,
-                        Token = sel.Token
-                    });
-                }
-            }
+            await Task.WhenAll(tasks);           
         }
 
         public async Task UpdateSecurityInfo(IEnumerable<SelectedSymbol> selection)
@@ -171,6 +211,15 @@ namespace StrategyEngine
             {
                 var details = GlobalDataSet.Data.GetOrAdd(scrip.TradingSymbol, _ => new());
                 details!.SecurityInfo.AddOrUpdate(scrip.Exchange, scrip, (_, _) => scrip);
+
+                if (_directFromServerEvents.TryGetValue(StrategyEngineEventType.Securities, out var handler) && handler is not null)
+                    await handler(new StrategyEvent
+                    {
+                        EventType = StrategyEngineEventType.Securities,
+                        Exchange = scrip.Exchange,
+                        Token = scrip.Token,
+                        TradingSymbol = scrip.TradingSymbol
+                    });
             }
         }
 

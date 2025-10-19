@@ -6,7 +6,6 @@ using FlatTrade.SubscriptionManager.Order;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
 using StrategyEngine.Strategy;
-using System.Diagnostics;
 using static StrategyEngine.StrategyProcessor;
 
 namespace StrategyEngine
@@ -100,18 +99,35 @@ namespace StrategyEngine
                 {
                     details!.OpenOrders.AddOrUpdate(order.NorenOrderNumber, order, (key, existingValue) => order);
                 }
-            }
 
-            if (isCompleted)
-            {
-                List<Task> tasks = [];
-                tasks.Add(_directFromServer.UpdatePositions());
-                tasks.Add(_directFromServer.UpdateTradeDetails());
-                if (isHoldingsUpdated)
-                    tasks.Add(_directFromServer.UpdateHoldingDetails());
+                if (_onStrategyEvents is not null)
+                {
+                    if (details.SecurityInfo.TryGetValue(order.Exchange, out ScripInfo? scrip) && scrip is not null)
+                    {
+                        await _onStrategyEvents(new StrategyEvent
+                        {
+                            EventType = StrategyEngineEventType.Orders,
+                            Exchange = order.Exchange,
+                            Token = scrip.Token,
+                            TradingSymbol = order.TradingSymbol
+                        });
+                    }
+                    else
+                    {
+                        _logger.LogError("UpdateOrderBook: Unable to get token value from SecurityInfo (GlobalDataSet) for {TradingSymbol}/{exchange}. Not sending the order update for {NorenOrderNumber}", order.TradingSymbol, order.Exchange, order.NorenOrderNumber);
+                    }
+                }
+                if (isCompleted)
+                {
+                    List<Task> tasks = [];
+                    tasks.Add(_directFromServer.UpdatePositions());
+                    tasks.Add(_directFromServer.UpdateTradeDetails());
+                    if (isHoldingsUpdated)
+                        tasks.Add(_directFromServer.UpdateHoldingDetails());
 
-                await Task.WhenAll(tasks);
-            }
+                    await Task.WhenAll(tasks);
+                }
+            }            
         }
 
         private async Task OnOrderUpdates(OrderSubscriptionUpdates Object)

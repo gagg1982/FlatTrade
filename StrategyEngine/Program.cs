@@ -6,14 +6,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using StrategyEngine;
+using StrategyEngine.Model;
+using StrategyEngine.RMS;
 using StrategyEngine.Strategy;
 
-//Subscribe to orders
-//Subscribe to trades
-//Subscribe to Quotes
-//Get All Orders
-//Get All Open Positions
-//Get Available balance.
+
 Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
 var configFile = FileHelper.GetConfigFile(args.Length == 1 ? args[0] : "");
@@ -30,10 +27,9 @@ Log.Logger = new LoggerConfiguration()
 AppDomain.CurrentDomain.ProcessExit += (s, e) => Log.CloseAndFlush();
 
 var loggerFactory = new LoggerFactory().AddSerilog();
-var throttler = new OutstandingThrottleInterceptor(config, loggerFactory);
+var throttler = new RateLimiterThrottleInterceptor(config, loggerFactory);
 
 //=====================================================================
-
 
 Api api = new(config["Api:Key"] ?? String.Empty,
               config["Api:RedirectUrl"] ?? String.Empty,
@@ -42,9 +38,21 @@ Api api = new(config["Api:Key"] ?? String.Empty,
               loggerFactory,
               throttler); //apikey
 
-IStrategy strategy = new TestStrategy(config, api, loggerFactory);
-StrategyProcessor obj = new(config, api, strategy, loggerFactory);
+var rms = new RmsManager();
+rms.Register(new MaxLossLimitPerDay());
+rms.Register(new MaxLossLimitPerTrade());
 
+IEnumerable<StrategyEngineEventType> strategyEventTypesSubscription = [StrategyEngineEventType.Quotes,
+                                                                      StrategyEngineEventType.TouchLine,
+                                                                      StrategyEngineEventType.Candles,
+                                                                      StrategyEngineEventType.Holdings,
+                                                                      StrategyEngineEventType.Positions,
+                                                                      StrategyEngineEventType.Securities,
+                                                                      StrategyEngineEventType.Trades,
+                                                                      StrategyEngineEventType.Orders];
+
+IStrategy strategy = new TestStrategy(config, api, rms, strategyEventTypesSubscription, loggerFactory);
+StrategyProcessor strategyProcessor = new(config, api, strategy, loggerFactory);
 
 Console.ReadKey();
 //=====================================================================

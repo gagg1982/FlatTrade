@@ -6,8 +6,8 @@ namespace StrategyEngine.Strategy
     internal class StrategyEvent
     {
         internal required StrategyEngineEventType EventType { get; set; }
-        internal string TradingSymbol { get; set; } = string.Empty;
-        internal Exchange Exchange {  get; set; }
-        internal long Token { get; set; }
+        internal required string TradingSymbol { get; set; } = string.Empty;
+        internal required Exchange Exchange {  get; set; }
+        internal required long Token { get; set; }
     }
 }

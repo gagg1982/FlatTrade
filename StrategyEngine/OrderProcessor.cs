@@ -1,6 +1,7 @@
 ﻿using FlatTrade;
 using FlatTrade.Common.Types.Base;
 using Microsoft.Extensions.Logging;
+using StrategyEngine.Strategy;
 
 namespace StrategyEngine
 {
@@ -31,8 +32,147 @@ namespace StrategyEngine
             return true;
         }
 
-        public async Task CreateOrderLimitAsync(string tradingSymbol, int qty, decimal prc,
-                                                      bool isBuy,
+        public async Task CancelOrder(CancelOrder cancelOrder)
+        {
+            var (resp, msg) = await _api.Order.CancelOrderAsync(cancelOrder.NorenOrderNumber);
+            if (resp is null)
+            {
+                _logger.LogError("CancelOrder: Failed cancel order request [{cancelOrder.NorenOrderNumber}]. Error msg {msg}", cancelOrder.NorenOrderNumber, msg);
+            }
+        }
+
+        public async Task ModifyOrder(ModifyOrder modifyOrder)
+        {
+        }
+
+        public async Task CreateOrder(CreateOrder createOrder)
+        {
+            switch (createOrder.ProductType)
+            {
+                case ProductType.BracketOrder:
+                    switch (createOrder.PriceType)
+                    {
+                        case PriceType.Market:
+                            await CreateOrderBOMarketAsync(createOrder.TradingSymbol,
+                                               createOrder.Quantity,
+                                               createOrder.DifferentialSLPrice,
+                                               createOrder.DifferentialProfitPrice,
+                                               createOrder.DifferentialTrailingTicks,
+                                               createOrder.MarketProtectionInPercent,                                               
+                                               createOrder.TransactionType,
+                                               createOrder.Exchange,
+                                               createOrder.RetentionType,
+                                               IsAmo());
+                            break;
+                        case PriceType.Limit:
+                            await CreateOrderBOLimitAsync(createOrder.TradingSymbol,
+                                                createOrder.Quantity,
+                                                createOrder.LimitPrice,
+                                                createOrder.DifferentialSLPrice,
+                                                createOrder.DifferentialProfitPrice,
+                                                createOrder.DifferentialTrailingTicks,
+                                                createOrder.TransactionType,
+                                                createOrder.Exchange,
+                                                createOrder.RetentionType,
+                                                IsAmo());
+                            break;
+                        case PriceType.StopLossMarket:
+                            await CreateOrderBOSLLimitAsync(createOrder.TradingSymbol,
+                                                createOrder.Quantity,
+                                                createOrder.LimitPrice,
+                                                createOrder.BoTriggerPrice,
+                                                createOrder.DifferentialSLPrice,
+                                                createOrder.DifferentialProfitPrice,
+                                                createOrder.DifferentialTrailingTicks,
+                                                createOrder.TransactionType,
+                                                createOrder.Exchange,
+                                                createOrder.RetentionType,
+                                                IsAmo());
+                            break;
+                        case PriceType.StopLossLimit:
+                        default:
+                            _logger.LogWarning("CreateOrder:{ProductType} Unsupported/unknown PriceType {PriceType} ", createOrder.ProductType, createOrder.PriceType);
+                            break;
+                    }                    
+                    break;
+                case ProductType.IntraDay:
+                case ProductType.Delivery:
+                    switch(createOrder.PriceType)
+                    {
+                        case PriceType.Limit:
+                            await CreateOrderLimitAsync(createOrder.TradingSymbol,
+                            createOrder.Quantity,
+                            createOrder.LimitPrice,
+                            createOrder.TransactionType,
+                            createOrder.ProductType == ProductType.IntraDay,
+                            createOrder.Exchange,
+                            createOrder.RetentionType,
+                            IsAmo());
+
+                            break;
+                        case PriceType.StopLossLimit:
+                            await CreateOrderSLLimitAsync(createOrder.TradingSymbol,
+                            createOrder.Quantity,
+                            createOrder.LimitPrice,
+                            createOrder.TransactionType == TransactionType.Buy ?
+                                    createOrder.LimitPrice + createOrder.DifferentialSLPrice :
+                                    createOrder.LimitPrice - createOrder.DifferentialSLPrice,  //SL Trigger price
+                            createOrder.TransactionType,
+                            createOrder.ProductType == ProductType.IntraDay,
+                            createOrder.Exchange,
+                            createOrder.RetentionType,
+                            IsAmo());
+
+                            break;
+                        case PriceType.Market:
+                            await CreateOrderMarketAsync(createOrder.TradingSymbol,
+                            createOrder.Quantity,
+                            createOrder.MarketProtectionInPercent,
+                            createOrder.TransactionType,
+                            createOrder.ProductType == ProductType.IntraDay,
+                            createOrder.Exchange,
+                            createOrder.RetentionType,
+                            IsAmo());
+
+                            break;
+                        case PriceType.StopLossMarket:
+                            await CreateOrderSLMarketAsync(createOrder.TradingSymbol,
+                            createOrder.Quantity,
+                            createOrder.MarketProtectionInPercent,
+                            createOrder.TransactionType == TransactionType.Buy ?
+                                    createOrder.LimitPrice + createOrder.DifferentialSLPrice :
+                                    createOrder.LimitPrice - createOrder.DifferentialSLPrice,  //SL Trigger price
+                            createOrder.TransactionType,
+                            createOrder.ProductType == ProductType.IntraDay,
+                            createOrder.Exchange,
+                            createOrder.RetentionType,
+                            IsAmo());
+                            break;
+                        default:
+                            _logger.LogWarning("CreateOrder:{ProductType} Unsupported/unknown PriceType {PriceType} ", createOrder.ProductType, createOrder.PriceType);
+                            break;
+                    }
+                                                
+                    break;
+                case ProductType.HighLeverage:
+                case ProductType.MargingTradeFacility:
+                case ProductType.Normal:                    
+                default:
+                    _logger.LogWarning("CreateOrder: Unsupported/unknown ProductType {ProductType}", createOrder.ProductType);
+                    break;
+            }
+        }
+
+        private static bool IsAmo()
+        {
+            var curentDateTime = DateTime.Now;
+            var tradingStartDateTime = curentDateTime.Date.AddHours(9).AddMinutes(15);
+            var tradingEndDateTime = curentDateTime.Date.AddHours(15).AddMinutes(30);
+            return (curentDateTime < tradingStartDateTime) || (curentDateTime >= tradingEndDateTime);
+        }
+
+        private async Task CreateOrderLimitAsync(string tradingSymbol, int qty, decimal prc,
+                                                      TransactionType transactionType,
                                                       bool isIntraDay,
                                                       Exchange exch = Exchange.NSE,
                                                       RetentionType retentionType = RetentionType.DAY,
@@ -53,7 +193,7 @@ namespace StrategyEngine
                 TradingSymbol = tradingSymbol,
                 Quantity = qty,
                 Price = prc,
-                TransactionType = isBuy ? TransactionType.Buy : TransactionType.Sell,
+                TransactionType = transactionType,
                 PriceType = PriceType.Limit,
                 ProductType = productType,
                 RetentionType = retentionType,
@@ -74,8 +214,8 @@ namespace StrategyEngine
             }
         }
 
-        public async Task CreateOrderMarketAsync(string tradingSymbol, int qty, decimal marketProtectionInPecent,
-                                                    bool isBuy,
+        private async Task CreateOrderMarketAsync(string tradingSymbol, int qty, decimal marketProtectionInPecent,
+                                                    TransactionType transactionType,
                                                     bool isIntraDay,
                                                     Exchange exch = Exchange.NSE,
                                                     RetentionType retentionType = RetentionType.DAY,
@@ -98,8 +238,8 @@ namespace StrategyEngine
                 Exchange = exch,
                 TradingSymbol = tradingSymbol,
                 Quantity = qty,
-                Price = prc + (isBuy ? marketLimitPrice: -marketLimitPrice),
-                TransactionType = isBuy ? TransactionType.Buy : TransactionType.Sell,
+                Price = prc + (transactionType == TransactionType.Buy ? marketLimitPrice: -marketLimitPrice),
+                TransactionType = transactionType,
                 PriceType = PriceType.Limit,
                 ProductType = productType,
                 RetentionType = retentionType,
@@ -120,8 +260,8 @@ namespace StrategyEngine
             }
         }
 
-        public async Task CreateOrderSLLimitAsync(string tradingSymbol, int qty, decimal prc, decimal triggerPrc, //Trigger Price ≤ Limit Price in case of buy
-                                                    bool isBuy,
+        private async Task CreateOrderSLLimitAsync(string tradingSymbol, int qty, decimal prc, decimal triggerPrc, //Trigger Price ≤ Limit Price in case of buy
+                                                    TransactionType transactionType,
                                                     bool isIntraDay,
                                                     Exchange exch = Exchange.NSE,
                                                     RetentionType retentionType = RetentionType.DAY,
@@ -143,7 +283,7 @@ namespace StrategyEngine
                 Quantity = qty,
                 Price = prc,
                 TriggerPrice = triggerPrc,
-                TransactionType = isBuy ? TransactionType.Buy : TransactionType.Sell,
+                TransactionType = transactionType,
                 PriceType = PriceType.StopLossLimit,
                 ProductType = productType,
                 RetentionType = retentionType,
@@ -164,8 +304,8 @@ namespace StrategyEngine
             }
         }
 
-        public async Task CreateOrderSLMarketAsync(string tradingSymbol, int qty, decimal marketProtectionInPecent, decimal triggerPrc,
-                                                      bool isBuy,
+        private async Task CreateOrderSLMarketAsync(string tradingSymbol, int qty, decimal marketProtectionInPecent, decimal triggerPrc,
+                                                      TransactionType transactionType,
                                                       bool isIntraDay,
                                                       Exchange exch = Exchange.NSE,
                                                       RetentionType retentionType = RetentionType.DAY,
@@ -188,9 +328,9 @@ namespace StrategyEngine
                 Exchange = exch,
                 TradingSymbol = tradingSymbol,
                 Quantity = qty,
-                Price = prc + (isBuy ? marketLimitPrice : -marketLimitPrice),
+                Price = prc + (transactionType == TransactionType.Buy ? marketLimitPrice : -marketLimitPrice),
                 TriggerPrice = triggerPrc,
-                TransactionType = isBuy ? TransactionType.Buy : TransactionType.Sell,
+                TransactionType = transactionType,
                 PriceType = PriceType.Limit,
                 ProductType = productType,
                 RetentionType = retentionType,
@@ -214,8 +354,8 @@ namespace StrategyEngine
         //==================================================================================================
         //==================================================================================================
 
-        public async Task CreateOrderCOLimitAsync(string tradingSymbol, int qty, decimal prc, decimal differentialStopPrc,
-                                                  bool isBuy,
+        private async Task CreateOrderCOLimitAsync(string tradingSymbol, int qty, decimal prc, decimal differentialStopPrc,
+                                                  TransactionType transactionType,
                                                   Exchange exch = Exchange.NSE,
                                                   RetentionType retentionType = RetentionType.DAY, // for BSE: DAY/EOS and FOR NSE: DAY only                                                  
                                                   bool amo = false)
@@ -236,7 +376,7 @@ namespace StrategyEngine
                TradingSymbol = tradingSymbol,
                Quantity = qty,
                Price = prc,
-               TransactionType = isBuy ? TransactionType.Buy : TransactionType.Sell,
+               TransactionType = transactionType,
                PriceType = PriceType.Limit,
                ProductType = ProductType.HighLeverage,
                RetentionType = retentionType,
@@ -256,8 +396,8 @@ namespace StrategyEngine
             }
         }
 
-        public async Task CreateOrderCOMarketAsync(string tradingSymbol, int qty, decimal differentialStopPrc, decimal marketProtectionInPecent,
-                                                   bool isBuy,
+        private async Task CreateOrderCOMarketAsync(string tradingSymbol, int qty, decimal differentialStopPrc, decimal marketProtectionInPecent,
+                                                   TransactionType transactionType,
                                                    Exchange exch = Exchange.NSE,
                                                    RetentionType retentionType = RetentionType.DAY, // for BSE: DAY/EOS and FOR NSE: DAY only                                                   
                                                    bool amo = false)
@@ -280,8 +420,8 @@ namespace StrategyEngine
                 Amo = amo ? "Yes" : "No",
                 TradingSymbol = tradingSymbol,
                 Quantity = qty,
-                Price = prc + (isBuy ? marketLimitPrice : -marketLimitPrice),
-                TransactionType = isBuy ? TransactionType.Buy : TransactionType.Sell,
+                Price = prc + (transactionType == TransactionType.Buy ? marketLimitPrice : -marketLimitPrice),
+                TransactionType = transactionType,
                 PriceType = PriceType.Limit,
                 ProductType = ProductType.HighLeverage,
                 RetentionType = retentionType,
@@ -301,8 +441,8 @@ namespace StrategyEngine
             }
         }
 
-        public async Task CreateOrderCOSLLimitAsync(string tradingSymbol, int qty, decimal prc, decimal differentialStopPrc, decimal triggerPrc,
-                                                    bool isBuy,
+        private async Task CreateOrderCOSLLimitAsync(string tradingSymbol, int qty, decimal prc, decimal differentialStopPrc, decimal triggerPrc,
+                                                    TransactionType transactionType,
                                                     Exchange exch = Exchange.NSE,
                                                     RetentionType retentionType = RetentionType.DAY, // for BSE: DAY/EOS and FOR NSE: DAY only                                                    
                                                     bool amo = false)
@@ -324,7 +464,7 @@ namespace StrategyEngine
                 Quantity = qty,
                 TriggerPrice = triggerPrc,
                 Price = prc,
-                TransactionType = isBuy ? TransactionType.Buy : TransactionType.Sell,
+                TransactionType = transactionType,
                 PriceType = PriceType.StopLossLimit,
                 ProductType = ProductType.HighLeverage,
                 RetentionType = retentionType,
@@ -346,8 +486,8 @@ namespace StrategyEngine
 
         //=====================================================================================================
 
-        public async Task CreateOrderBOLimitAsync(string tradingSymbol, int qty, decimal prc, decimal differentialStopPrc, decimal differentialTargetPrc, int differentialTrailingStopTicks,
-                                                  bool isBuy,
+        private async Task CreateOrderBOLimitAsync(string tradingSymbol, int qty, decimal prc, decimal differentialStopPrc, decimal differentialTargetPrc, int differentialTrailingStopTicks,
+                                                  TransactionType transactionType,
                                                   Exchange exch = Exchange.NSE,
                                                   RetentionType retentionType = RetentionType.DAY, // for BSE: DAY/EOS and FOR NSE: DAY only                                                  
                                                   bool amo = false)
@@ -368,7 +508,7 @@ namespace StrategyEngine
                 TradingSymbol = tradingSymbol,
                 Quantity = qty,
                 Price = prc,
-                TransactionType = isBuy ? TransactionType.Buy : TransactionType.Sell,
+                TransactionType = transactionType,
                 PriceType = PriceType.Limit,
                 ProductType = ProductType.HighLeverage,
                 RetentionType = retentionType,
@@ -387,8 +527,8 @@ namespace StrategyEngine
                 _logger.LogInformation("[BO Limit] order placed [{orderResp.NorenOrderNumber}]", orderResp.NorenOrderNumber);
             }
         }
-        public async Task CreateOrderBOMarketAsync( string tradingSymbol, int qty, decimal differentialStopPrc, decimal differentialTargetPrc, int differentialTrailingStopPrc, decimal marketProtectionInPecent,
-                                                   bool isBuy,
+        private async Task CreateOrderBOMarketAsync( string tradingSymbol, int qty, decimal differentialStopPrc, decimal differentialTargetPrc, int differentialTrailingStopPrc, decimal marketProtectionInPecent,
+                                                   TransactionType transactionType,
                                                    Exchange exch = Exchange.NSE,
                                                    RetentionType retentionType = RetentionType.DAY,
                                                    bool amo = false)
@@ -410,8 +550,8 @@ namespace StrategyEngine
                 Amo = amo ? "Yes" : "No",
                 TradingSymbol = tradingSymbol,
                 Quantity = qty,
-                Price = prc + (isBuy ? marketLimitPrice : -marketLimitPrice),
-                TransactionType = isBuy ? TransactionType.Buy : TransactionType.Sell,
+                Price = prc + (transactionType == TransactionType.Buy ? marketLimitPrice : -marketLimitPrice),
+                TransactionType = transactionType,
                 PriceType = PriceType.Limit,
                 ProductType = ProductType.HighLeverage,
                 RetentionType = retentionType,
@@ -431,9 +571,14 @@ namespace StrategyEngine
             }
         }
 
-        //public async Task CreateOrderBOSLLimitAsync(Exchange exch, string tradingSymbol, int qty, decimal prc, decimal differentialStopPrc, decimal differentialTargetPrc, int differentialTrailingStopPrc, decimal triggerPrc,
-        //                                            bool isBuy,
-        //                                            bool amo = false);
+        public async Task CreateOrderBOSLLimitAsync(string tradingSymbol, int qty, decimal prc, decimal triggerPrc, decimal differentialStopPrc, decimal differentialTargetPrc, int differentialTrailingStopPrc,
+                                                    TransactionType transactionType,
+                                                    Exchange exch = Exchange.NSE,
+                                                    RetentionType retentionType = RetentionType.DAY,                                                    
+                                                    bool amo = false)
+        {
+
+        }
 
     }
 }

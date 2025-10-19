@@ -93,7 +93,7 @@ namespace DailyRunner
                 var fileChannelCapacity = Convert.ToInt32(config["BookKeeping:WriteToFile:ChannelCapacity"] ?? "5000");
                 var filePath = config["BookKeeping:WriteToFile:CsvFilePath"] ?? string.Empty;
                 if (string.IsNullOrEmpty(filePath))
-                    throw new ArgumentNullException("BookKeeping:WriteToFile:CsvFilePath is not configured.");
+                    throw new InvalidDataException("BookKeeping:WriteToFile:CsvFilePath is not configured.");
 
                 filePath = Path.GetFullPath(filePath);
                 _csvWriter = new CsvWriter(Path.GetDirectoryName(filePath)!, fileChannelCapacity, nameof(BookKeeping), loggerFactory);
