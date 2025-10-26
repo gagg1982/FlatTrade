@@ -9,7 +9,7 @@ namespace FlatTrade.SubscriptionManager.Quote
     {
         private readonly ILogger<QuoteSubscription> _logger = loggerFactory.CreateLogger<QuoteSubscription>();
         private readonly Subscription _subscription = subscription;
-        public OnSubscriptionEvents? _onSubscriptionEvents = null;
+        public OnSubscriptionEvents? OnSubscriptionEvents = null;
         private readonly List<KeyValuePair<Exchange, long>> _subscribedTokens = [];
         public async Task<bool> SubscribeAsync(IEnumerable<KeyValuePair<Exchange, long>> exchangeSymbolTokenPair)
         {
@@ -64,26 +64,24 @@ namespace FlatTrade.SubscriptionManager.Quote
                 {
                     case SubscriptionType.ConnectAck:
                         _logger.LogInformation("[Quote Subscription]: ConnectAck received.");
-                        if (_onSubscriptionEvents != null)
+                        if (OnSubscriptionEvents != null)
                         {
                             _logger.LogInformation("[Quote Subscription]: Subscribing for the quotes again.");
                             await SubscribeAsync(_subscribedTokens);
-                            await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<ConnectResponse>(subscriptionEvent.RawMessage));
+                            await OnSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<ConnectResponse>(subscriptionEvent.RawMessage));
                         }
                         break;
                     case SubscriptionType.SubscribeQuoteAck:
-                        _logger.LogInformation("[Quote Subscription]: SubscribeQuoteAck is received.");
-                        if (_onSubscriptionEvents != null)
-                            await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<QuoteSubscriptionRequestAck>(subscriptionEvent.RawMessage));
+                        if (OnSubscriptionEvents != null)
+                            await OnSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<QuoteSubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;
                     case SubscriptionType.SubscribeQuoteUpdates:
-                        if (_onSubscriptionEvents != null)
-                            await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<QuoteSubscriptionUpdates>(subscriptionEvent.RawMessage));
+                        if (OnSubscriptionEvents != null)
+                            await OnSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<QuoteSubscriptionUpdates>(subscriptionEvent.RawMessage));
                         break;
                     case SubscriptionType.UnsubscribeQuoteAck:
-                        _logger.LogInformation("[Quote Subscription]: Un-SubscribeQuoteAck is received.");
-                        if (_onSubscriptionEvents != null)
-                            await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<QuoteUnsubscriptionRequestAck>(subscriptionEvent.RawMessage));
+                        if (OnSubscriptionEvents != null)
+                            await OnSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<QuoteUnsubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;
                     default:
                         _logger.LogError("[Quote Subscription]: Incorrect message received in OnMessageReceived handler: '{message}'", subscriptionEvent.RawMessage);
@@ -92,15 +90,15 @@ namespace FlatTrade.SubscriptionManager.Quote
             }
             catch (JsonSerializationException e)
             {
-                _logger.LogError("[Quote Subscription]: OnMessageReceived Serialization Exception : {e.Message}", e.Message);
+                _logger.LogError("[Quote Subscription]: OnMessageReceived Serialization Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
             catch (ArgumentOutOfRangeException e)
             {
-                _logger.LogError("[Quote Subscription]: OnMessageReceived ArgumentOutOfRange Exception : {e.Message}", e.Message);
+                _logger.LogError("[Quote Subscription]: OnMessageReceived ArgumentOutOfRange Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
             catch (Exception e)
             {
-                _logger.LogError("[Quote Subscription]: OnMessageReceived Exception : {e.Message}", e.Message);
+                _logger.LogError("[Quote Subscription]: OnMessageReceived Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
         }
     }

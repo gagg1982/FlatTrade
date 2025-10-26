@@ -1,11 +1,18 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using FlatTrade.Common.Types;
+using FlatTrade.SubscriptionManager.Helper;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Text;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 
-namespace DailyRunner.Helpers
+namespace FlatTrade.Common.Helpers
 {
-    internal class DbWriter
+    public class DbWriter
     {
         private readonly ILogger<DbWriter> _logger;
         private readonly Channel<DbChannelObject> _dbChannel;
@@ -19,7 +26,7 @@ namespace DailyRunner.Helpers
             _connectionString = connectionString;
             _batchCount = batchCount;
             _dbWriterFriendlyName = dbWriterFriendlyName;
-            _dbChannel = Utility.CreateBoundedChannel<DbChannelObject>(dbChannelCapacity);
+            _dbChannel = HelperUtility.CreateBoundedChannel<DbChannelObject>(dbChannelCapacity);
             _task = WriteDbAsync();
         }
 
@@ -55,7 +62,8 @@ namespace DailyRunner.Helpers
                         _logger.LogCritical(ex, "[{_dbWriterFriendlyName}] Error: Batch/DbRecord: {batchNumber}/{recordCount}. Error {ex.Message}", _dbWriterFriendlyName, batchNumber, reader.Records.Rows.Count, ex.Message);
                         ++objectsfailed;
                     }
-                    finally {
+                    finally
+                    {
                         _logger.LogDebug("[{_dbWriterFriendlyName}] Success: Batches/DbRecords: {batchNumber}/{recordCount}", _dbWriterFriendlyName, batchNumber, reader.Records.Rows.Count);
                     }
                 }

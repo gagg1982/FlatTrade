@@ -1,3 +1,7 @@
+DROP TABLE IF EXISTS [dbo].[BrokerageAndTaxes];
+PRINT 'Table BrokerageAndTaxes dropped if it existed.';
+DROP TABLE IF EXISTS [dbo].[ExcludedStockInstruments];
+PRINT 'Table ExcludedStockInstruments dropped if it existed.';
 DROP TABLE IF EXISTS [dbo].[Positions];
 PRINT 'Table Positions dropped if it existed.';
 DROP TABLE IF EXISTS [dbo].[Holdings];
@@ -21,6 +25,8 @@ PRINT 'Table StockInstruments dropped if it existed.';
 DROP TABLE IF EXISTS [dbo].[Exchange];
 PRINT 'Table Exchange dropped if it existed.';
 
+DROP TYPE IF EXISTS [dbo].[TBrokerageAndTaxes];
+PRINT 'Type TBrokerageAndTaxes dropped if it existed.';
 DROP TYPE IF EXISTS [dbo].[TPositions];
 PRINT 'Type TPositions dropped if it existed.';
 DROP TYPE IF EXISTS [dbo].[THoldings];
@@ -44,6 +50,72 @@ PRINT 'Type TStocksOhlcv dropped if it existed.';
 PRINT '==================All specified tables and types dropped successfully.======================';
 
 --============================================================
+
+--============================================================
+
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BrokerageAndTaxes' AND xtype='U')
+    BEGIN      
+        
+       CREATE TABLE dbo.BrokerageAndTaxes
+        (
+            TradingSymbol NVARCHAR(64) NOT NULL,
+            Exchange NVARCHAR(16) NOT NULL,
+            BrokerageAmount DECIMAL(18, 2) NULL,
+            ClearingMemberAmount DECIMAL(18, 2) NULL,
+            ExchangeOrderNumber NVARCHAR(64) NULL,
+            FillDateTime DATETIME2 NOT NULL,
+            FillId NVARCHAR(64) NOT NULL,
+            FillPrice DECIMAL(18, 4) NOT NULL,
+            FillQuantity DECIMAL(18, 4) NOT NULL,
+            Gst DECIMAL(18, 2) NULL,
+            InvestorProtectionFundTrustAmount DECIMAL(18, 2) NULL,
+            NorenOrderNumber BIGINT NULL,
+            SnoOrderNumber BIGINT NULL,
+            NorenTime DATETIME2 NULL,
+            ProductType NVARCHAR(32) NULL,
+            Remarks NVARCHAR(256) NULL,
+            SebiCharges DECIMAL(18, 2) NULL,
+            ExchangeCharges DECIMAL(18, 2) NULL,
+            SecurityTransactionTax DECIMAL(18, 2) NULL,
+            StampDuty DECIMAL(18, 2) NULL,
+            Token BIGINT NOT NULL,
+            TotalCharges DECIMAL(18, 2) NULL,
+            TransactionType NVARCHAR(32) NULL,
+            Url NVARCHAR(256) NULL,
+            LastModifiedAt dateTime2 Not NULL,
+            CONSTRAINT PK_BrokerageAndTaxes PRIMARY KEY (Token, FillId, Exchange)
+        );
+
+        PRINT 'Table BrokerageAndTaxes created.';
+    END
+    ELSE
+    BEGIN
+        PRINT 'Table BrokerageAndTaxes already exists.';
+    END
+
+GO;
+--============================================================
+
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ExcludedStockInstruments' AND xtype='U')
+    BEGIN      
+        
+        CREATE TABLE dbo.ExcludedStockInstruments
+        (
+            Token INT NOT NULL,
+            TradingSymbol NVARCHAR(64) NOT NULL,
+            Exchange NVARCHAR(64) NOT NULL
+        );
+        CREATE UNIQUE INDEX IX_ExcludedStockInstruments_TradingSymbolExchange 
+        ON dbo.ExcludedStockInstruments(TradingSymbol, Exchange);
+
+        PRINT 'Table ExcludedStockInstruments created.';
+    END
+    ELSE
+    BEGIN
+        PRINT 'Table ExcludedStockInstruments already exists.';
+    END
+
+GO;
 --============================================================
 
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Postions' AND xtype='U')
@@ -196,6 +268,9 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='HolidayCalendar' AND xtype='
             [DayName] VARCHAR(20) NOT NULL,
             Description VARCHAR(200) NOT NULL
         );
+
+        CREATE INDEX IX_HolidayCalendar_ExchangeDate
+            ON dbo.HolidayCalendar (Exchange, HolidayDate);
         PRINT 'Table HolidayCalendar created.';
     END
     ELSE
@@ -487,6 +562,42 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Exchange' AND xtype='U')
 
 GO
 --============================================================
+IF TYPE_ID(N'[dbo].[TBrokerageAndTaxes]') IS NULL
+    BEGIN
+        CREATE TYPE dbo.TBrokerageAndTaxes AS TABLE
+        (
+            TradingSymbol NVARCHAR(64),
+            Exchange NVARCHAR(16),
+            BrokerageAmount DECIMAL(18, 2),
+            ClearingMemberAmount DECIMAL(18, 2),
+            ExchangeOrderNumber NVARCHAR(64),
+            FillDateTime DATETIME2,
+            FillId NVARCHAR(64),
+            FillPrice DECIMAL(18, 4),
+            FillQuantity DECIMAL(18, 4),
+            Gst DECIMAL(18, 2),
+            InvestorProtectionFundTrustAmount DECIMAL(18, 2),
+            NorenOrderNumber BIGINT,
+            SnoOrderNumber BIGINT,
+            NorenTime DATETIME2,
+            ProductType NVARCHAR(32),
+            Remarks NVARCHAR(256),
+            SebiCharges DECIMAL(18, 2),
+            ExchangeCharges DECIMAL(18, 2),
+            SecurityTransactionTax DECIMAL(18, 2),
+            StampDuty DECIMAL(18, 2),
+            Token BIGINT,
+            TotalCharges DECIMAL(18, 2),
+            TransactionType NVARCHAR(32),
+            Url NVARCHAR(256)
+        );
+        PRINT 'Type TBrokerageAndTaxes created.';
+    END
+    ELSE
+        PRINT 'Type TBrokerageAndTaxes already exists.';
+
+GO
+--============================================================
 IF TYPE_ID(N'[dbo].[TExchanges]') IS NULL
     BEGIN
         CREATE TYPE [dbo].[TExchanges] AS TABLE
@@ -539,6 +650,10 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='StockInstruments' AND xtype=
             ON DELETE CASCADE
             ON UPDATE CASCADE
         );
+
+        CREATE INDEX IX_StockInstruments_Active
+            ON dbo.StockInstruments (Active, TradingSymbol, ExchangeCode);
+
         PRINT 'Table StockInstruments created.';
     END
     ELSE
@@ -595,12 +710,23 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='StocksOhlcv_1' AND xtype='U'
             [Low] DECIMAL(15,4) NOT NULL,
             [Close] DECIMAL(15,4) NOT NULL,
             [Volume] DECIMAL(10) NOT NULL,
+            [TradeDate] AS CAST(StartDateTime AS date) PERSISTED,
 
-            CONSTRAINT UQ_StocksOhlcv_1_InstrumentId_StartDateTime UNIQUE ([InstrumentId],[StartDateTime]), 
             CONSTRAINT FK_StockInstruments_1_InstrumentId FOREIGN KEY (InstrumentId) REFERENCES StockInstruments (Id)
             ON DELETE CASCADE
             ON UPDATE CASCADE
         );
+        CREATE CLUSTERED INDEX IX_StocksOhlcv_1_Id_DateTime ON StocksOhlcv_1 (InstrumentId, StartDateTime);
+        UPDATE STATISTICS dbo.StocksOhlcv_1 WITH FULLSCAN;
+        
+        CREATE INDEX IX_StocksOhlcv_InstrumentDate
+        ON dbo.StocksOhlcv_1 (InstrumentId, StartDateTime)
+        INCLUDE (Volume);  -- add other fields if frequently used
+
+        CREATE INDEX IX_StocksOhlcv_Instrument_TradeDate
+        ON dbo.StocksOhlcv_1 (InstrumentId, TradeDate)
+        INCLUDE (StartDateTime);
+
         PRINT 'Table StocksOhlcv_1 created.';
     END
     ELSE
@@ -620,12 +746,12 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='StocksOhlcv_1440' AND xtype=
             [Low] DECIMAL(15,4) NOT NULL,
             [Close] DECIMAL(15,4) NOT NULL,
             [Volume] DECIMAL(10) NOT NULL,
-
-            CONSTRAINT UQ_StocksOhlcv_1440_InstrumentId_StartDateTime UNIQUE ([InstrumentId],[StartDateTime]), 
+            
             CONSTRAINT FK_StockInstruments_1440_InstrumentId FOREIGN KEY (InstrumentId) REFERENCES StockInstruments (Id)
             ON DELETE CASCADE
             ON UPDATE CASCADE
         );
+        CREATE CLUSTERED INDEX IX_StocksOhlcv_1440_Id_DateTime ON StocksOhlcv_1440 (InstrumentId, StartDateTime);
         PRINT 'Table StocksOhlcv_1440 created.';
     END
     ELSE

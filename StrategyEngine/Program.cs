@@ -6,10 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using StrategyEngine;
-using StrategyEngine.Model;
 using StrategyEngine.RMS;
 using StrategyEngine.Strategy;
-
 
 Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
@@ -31,27 +29,23 @@ var throttler = new RateLimiterThrottleInterceptor(config, loggerFactory);
 
 //=====================================================================
 
-Api api = new(config["Api:Key"] ?? String.Empty,
-              config["Api:RedirectUrl"] ?? String.Empty,
-              config["Api:Secret"] ?? String.Empty,
-              config["Api:AccessTokenFilePath"] ?? String.Empty,
+Api api = new(config["Api:Key"] ?? string.Empty,
+              config["Api:RedirectUrl"] ?? string.Empty,
+              config["Api:Secret"] ?? string.Empty,
+              config["Api:AccessTokenFilePath"] ?? string.Empty,
               loggerFactory,
-              throttler); //apikey
+              throttler);
 
 var rms = new RmsManager();
-rms.Register(new MaxLossLimitPerDay());
-rms.Register(new MaxLossLimitPerTrade());
+    rms.Register(new MaxLossLimitPerDay());
+    rms.Register(new MaxLossLimitPerTrade());
+    rms.Register(new SufficientBalance(api, config, loggerFactory));
 
-IEnumerable<StrategyEngineEventType> strategyEventTypesSubscription = [StrategyEngineEventType.Quotes,
-                                                                      StrategyEngineEventType.TouchLine,
-                                                                      StrategyEngineEventType.Candles,
-                                                                      StrategyEngineEventType.Holdings,
-                                                                      StrategyEngineEventType.Positions,
-                                                                      StrategyEngineEventType.Securities,
-                                                                      StrategyEngineEventType.Trades,
-                                                                      StrategyEngineEventType.Orders];
+// For Backtesting, just implement IOrderProcessor interface and u r done. 
+// No need to change the strategy class.
+var orderProcessor = new OrderProcessor(api, loggerFactory);
 
-IStrategy strategy = new TestStrategy(config, api, rms, strategyEventTypesSubscription, loggerFactory);
+IStrategy strategy = new TestStrategy(config, api, rms, orderProcessor, loggerFactory);
 StrategyProcessor strategyProcessor = new(config, api, strategy, loggerFactory);
 
 Console.ReadKey();

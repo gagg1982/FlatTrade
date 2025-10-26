@@ -65,7 +65,7 @@ namespace FlatTrade.SubscriptionManager.Order
         public long DisclosedQuantity { get; set; }
 
         [JsonProperty("exch_tm")]
-        [JsonConverter(typeof(IsoDateTimeConverter))]
+        [JsonConverter(typeof(CustomIsoDateTimeConverter))]
         public DateTime ExchangeTime { get; set; }
 
         [JsonProperty("amo")]

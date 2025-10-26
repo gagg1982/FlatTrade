@@ -147,7 +147,7 @@ namespace FlatTrade.TradeManager
         [JsonProperty("instname")]
         public InstrumentName InstrumentName { get; set; }
 
-        public static DateTime CreatedAt {
+        public DateTime CreatedAt {
             get
             {
                 var currDateTime = DateTime.Now.ToLocalTime();

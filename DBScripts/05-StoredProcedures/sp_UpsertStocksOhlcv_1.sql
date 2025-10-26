@@ -1,46 +1,72 @@
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[sp_UpsertStocksOhlcv_1]') AND type in (N'P', N'PC'))
-    DROP PROCEDURE [dbo].[sp_UpsertStocksOhlcv_1]
+IF OBJECT_ID('[dbo].[sp_UpsertStocksOhlcv_1]', 'P') IS NOT NULL
+    DROP PROCEDURE [dbo].[sp_UpsertStocksOhlcv_1];
 GO
 
 CREATE PROCEDURE [dbo].[sp_UpsertStocksOhlcv_1]
 (
-    @tvpData [dbo].[TStocksOhlcv] READONLY
+    @tvpData dbo.TStocksOhlcv READONLY
 )
 AS
 BEGIN
     SET NOCOUNT ON;
 
-_START:
     BEGIN TRY
-        BEGIN TRANSACTION
-     
-            MERGE INTO dbo.StocksOhlcv_1 AS Target
-            USING (SELECT a.Id, b.* FROM dbo.StockInstruments a join @tvpData b ON a.Token = b.Token ) AS Source
-            ON Target.[InstrumentId] = Source.[Id] and Target.StartdateTime =  Source.StartDateTime
-            WHEN MATCHED THEN
-                UPDATE SET Target.[Open] = Source.[Open],
-                           Target.[High] = Source.[High],
-                           Target.[Low] = Source.[Low],
-                           Target.[Close] = Source.[Close],
-                           Target.[Volume] = Source.[Volume]
-            WHEN NOT MATCHED THEN
-                INSERT ([InstrumentId], [StartDateTime], [Open], [High], [Low], [Close], [Volume])
-                VALUES (Source.Id, Source.StartDateTime, Source.[Open], Source.[High], Source.[Low], Source.[Close], Source.Volume);
+        BEGIN TRANSACTION;
 
-        IF (XACT_STATE()) <> -1
-           COMMIT TRANSACTION
+        -- Step 1: Materialize TVP + Join StockInstruments into a temp table
+        CREATE TABLE #Source
+        (
+            InstrumentId INT NOT NULL,
+            StartDateTime DATETIME2 NOT NULL,
+            [Open] DECIMAL(18,4) NULL,
+            [High] DECIMAL(18,4) NULL,
+            [Low] DECIMAL(18,4) NULL,
+            [Close] DECIMAL(18,4) NULL,
+            [Volume] BIGINT NULL
+        );
 
+        INSERT INTO #Source (InstrumentId, StartDateTime, [Open], [High], [Low], [Close], [Volume])
+        SELECT a.Id, b.StartDateTime, b.[Open], b.[High], b.[Low], b.[Close], b.[Volume]
+        FROM dbo.StockInstruments a
+        JOIN @tvpData b ON a.Token = b.Token;
+
+        -- Step 2: Add index for faster join and existence check
+        CREATE CLUSTERED INDEX IX_Source_Id_Date ON #Source (InstrumentId, StartDateTime);
+
+        -- Step 3: Update existing rows
+        UPDATE T
+        SET T.[Open] = S.[Open],
+            T.[High] = S.[High],
+            T.[Low]  = S.[Low],
+            T.[Close] = S.[Close],
+            T.[Volume] = S.[Volume]
+        FROM dbo.StocksOhlcv_1 T
+        INNER JOIN #Source S
+            ON T.InstrumentId = S.InstrumentId
+           AND T.StartDateTime = S.StartDateTime;
+
+        -- Step 4: Insert new rows
+        INSERT INTO dbo.StocksOhlcv_1
+            (InstrumentId, StartDateTime, [Open], [High], [Low], [Close], [Volume])
+        SELECT S.InstrumentId, S.StartDateTime, S.[Open], S.[High], S.[Low], S.[Close], S.[Volume]
+        FROM #Source S
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM dbo.StocksOhlcv_1 T
+            WHERE T.InstrumentId = S.InstrumentId
+              AND T.StartDateTime = S.StartDateTime
+        );
+
+        COMMIT TRANSACTION;
     END TRY
 
     BEGIN CATCH
         IF @@TRANCOUNT > 0
-        ROLLBACK TRANSACTION;
+            ROLLBACK TRANSACTION;
 
-        DECLARE @ErrorNumber INT = ERROR_NUMBER()
-        BEGIN
-           declare @message nvarchar(max) = N'An error occurred while merging [StocksOhlcv]. ' + ERROR_MESSAGE()
-           ; THROW 51002, @message, 1
-        END
+        DECLARE @Error NVARCHAR(MAX) =
+            N'Error in [sp_UpsertStocksOhlcv_1]: ' + ERROR_MESSAGE();
+        THROW 51002, @Error, 1;
     END CATCH
 END
 GO

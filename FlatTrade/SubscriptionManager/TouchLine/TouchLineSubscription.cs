@@ -10,7 +10,7 @@ namespace FlatTrade.SubscriptionManager.TouchLine
         private readonly List<KeyValuePair<Exchange, long>> _subscribedTokens = [];
         private readonly ILogger<TouchlineSubscription> _logger = loggerFactory.CreateLogger<TouchlineSubscription>();
         private readonly Subscription _subscription = subscription;
-        public OnSubscriptionEvents? _onSubscriptionEvents = null;
+        public OnSubscriptionEvents? OnSubscriptionEvents = null;
 
         public async Task<bool> SubscribeAsync(IEnumerable<KeyValuePair<Exchange, long>> exchangeSymbolTokenPair)
         {
@@ -62,26 +62,24 @@ namespace FlatTrade.SubscriptionManager.TouchLine
                 {
                     case SubscriptionType.ConnectAck:
                         _logger.LogInformation("[TouchLine Subscription]: ConnectAck received.");
-                        if (_onSubscriptionEvents != null)
+                        if (OnSubscriptionEvents != null)
                         {
                             _logger.LogInformation("[TouchLine Subscription]: Subscribing for the touchline updates .");
                             await SubscribeAsync(_subscribedTokens);
-                            await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<ConnectResponse>(subscriptionEvent.RawMessage));
+                            await OnSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<ConnectResponse>(subscriptionEvent.RawMessage));
                         }
                         break;
                     case SubscriptionType.SubscribeTouchLineUpdates:
-                        if (_onSubscriptionEvents != null)
-                            await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<TouchLineSubscriptionUpdates>(subscriptionEvent.RawMessage));
+                        if (OnSubscriptionEvents != null)
+                            await OnSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<TouchLineSubscriptionUpdates>(subscriptionEvent.RawMessage));
                         break;
                     case SubscriptionType.SubscribeTouchLineAck:
-                        _logger.LogInformation("[TouchLine Subscription]: SubscribeTouchLineAck is received.");
-                        if (_onSubscriptionEvents != null)
-                            await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<TouchLineSubscriptionRequestAck>(subscriptionEvent.RawMessage));
+                        if (OnSubscriptionEvents != null)
+                            await OnSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<TouchLineSubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;
                     case SubscriptionType.UnsubscribeTouchLineAck:
-                        _logger.LogInformation("[TouchLine Subscription]: Un-SubscribeTouchLineAck is received.");
-                        if (_onSubscriptionEvents != null)
-                            await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<TouchLineUnsubscriptionRequestAck>(subscriptionEvent.RawMessage));
+                        if (OnSubscriptionEvents != null)
+                            await OnSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<TouchLineUnsubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;
                     default:
                         _logger.LogError("[TouchLine Subscription]: Incorrect message received in OnMessageReceived handler: '{message}'", subscriptionEvent.RawMessage);
@@ -90,15 +88,15 @@ namespace FlatTrade.SubscriptionManager.TouchLine
             }
             catch (JsonSerializationException e)
             {
-                _logger.LogError("[TouchLine Subscription]: OnMessageReceived Serialization Exception : {e.Message}", e.Message);
+                _logger.LogError("[TouchLine Subscription]: OnMessageReceived Serialization Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
             catch (ArgumentOutOfRangeException e)
             {
-                _logger.LogError("[TouchLine Subscription]: OnMessageReceived ArgumentOutOfRange Exception : {e.Message}", e.Message);
+                _logger.LogError("[TouchLine Subscription]: OnMessageReceived ArgumentOutOfRange Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
             catch (Exception e)
             {
-                _logger.LogError("[TouchLine Subscription]: OnMessageReceived Exception : {e.Message}", e.Message);
+                _logger.LogError("[TouchLine Subscription]: OnMessageReceived Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
         }
     }

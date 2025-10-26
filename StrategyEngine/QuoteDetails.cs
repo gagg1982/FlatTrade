@@ -2,11 +2,9 @@
 using FlatTrade.Common.Types.Base;
 using FlatTrade.SubscriptionManager;
 using FlatTrade.SubscriptionManager.Quote;
-using FlatTrade.SubscriptionManager.TouchLine;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
 using StrategyEngine.Strategy;
-using static StrategyEngine.StrategyProcessor;
 
 namespace StrategyEngine
 {
@@ -15,16 +13,18 @@ namespace StrategyEngine
         private bool _disposed = false;
         private readonly Api _api;
         private readonly ILogger<QuoteDetails> _logger;
-        private readonly OnStrategyEvents? _onStrategyEvents;
+        private readonly OnUpdate? OnQuote;
+        private readonly DirectFromServer _directFromServer;
 
         private readonly Helpers.Queue<QuoteSubscriptionUpdates> _queue;
 
         private List<SelectedSymbol> _subscribedSymbols = [];
-        public QuoteDetails(Api api, OnStrategyEvents? onStrategyEvents, ILoggerFactory loggerFactory)
+        public QuoteDetails(Api api, DirectFromServer directFromServer, OnUpdate? onQuote, ILoggerFactory loggerFactory)
         {
             _api = api;
             _logger = loggerFactory.CreateLogger<QuoteDetails>();
-            _onStrategyEvents = onStrategyEvents;
+            _directFromServer = directFromServer;
+            OnQuote = onQuote;
             _queue = new(50000, "QuoteUpdateQueue", OnQuoteUpdates, loggerFactory);
         }
 
@@ -45,8 +45,8 @@ namespace StrategyEngine
                 return ok;
             }
 
-            if (_api.Subscription.QuoteSubscription._onSubscriptionEvents is null)
-                _api.Subscription.QuoteSubscription._onSubscriptionEvents = OnQuoteUpdates;
+            if (_api.Subscription.QuoteSubscription.OnSubscriptionEvents is null)
+                _api.Subscription.QuoteSubscription.OnSubscriptionEvents = OnQuoteUpdates;
             
             _logger.LogInformation("Subscribed to quote updates successfully.");
             return ok;
@@ -73,36 +73,61 @@ namespace StrategyEngine
 
             _logger.LogInformation("Un-Subscribed to quote updates successfully.");
             return ok;
-        }          
+        }
 
-        private static QuoteSubscriptionRequestAck UpdateQuotes(QuoteSubscriptionUpdates quoteUpdate)
+        private async Task UpdateOhlcv(string tradingSymbol, Exchange exchange, long token, long quantity, decimal price, DateTime tradeDateTime)
+        {
+            if (string.IsNullOrEmpty(tradingSymbol) || token == 0 ||  ( quantity == 0 &&  price == decimal.MinValue) || tradeDateTime == DateTime.MinValue)
+                return;
+
+            // bad hack of -1 seconds as Flattrade captures the price exactly at 9:20:00.000 into 9:19:00 candle instead of 9:20:00 candle.
+            // This is impacting OHLCV. Other platforms consider it the part of 9:20 candle instead of 9:19.
+            await _directFromServer.UpdateCandles(tradingSymbol, exchange, token, price, quantity, tradeDateTime.ToLocalTime().AddSeconds(-1)); 
+        }
+
+        private async Task<QuoteSubscriptionRequestAck> UpdateQuotes(QuoteSubscriptionUpdates quoteUpdate)
         {
             var newQuoteUpdate = new QuoteSubscriptionRequestAck
             {
                 Token = quoteUpdate.Token,
                 Exchange = quoteUpdate.Exchange,
             };
-            newQuoteUpdate.Update(quoteUpdate);
+            newQuoteUpdate.Update(quoteUpdate);           
 
-            var details = GlobalDataSet.Subscriptions.GetOrAdd(quoteUpdate.Token, new SubscriptionDetails());
-            return details.QuoteSubscription.AddOrUpdate(quoteUpdate.Exchange, newQuoteUpdate, (key, existingValue) => existingValue.Update(quoteUpdate));
+            var details = GlobalDataSet.Subscriptions.GetOrAdd(quoteUpdate.Token, new SubscriptionDetails());            
+            var quoteRequestAck = details.QuoteSubscription.AddOrUpdate(quoteUpdate.Exchange, newQuoteUpdate, (key, existingValue) => { return existingValue.Update(quoteUpdate);});
+            
+            await UpdateOhlcv(quoteRequestAck.TradingSymbol,
+                                    quoteUpdate.Exchange,
+                                    quoteUpdate.Token,
+                                    quoteUpdate.LastTradeQuantity,
+                                    quoteUpdate.LastTradePrice,
+                                    quoteUpdate.LastTradeDateTime);
+
+            return quoteRequestAck;
         }
 
-        private static void UpdateQuotes(QuoteSubscriptionRequestAck quoteUpdates)
+        private async Task UpdateQuotes(QuoteSubscriptionRequestAck quoteUpdates)
         {
             var details = GlobalDataSet.Subscriptions.GetOrAdd(quoteUpdates.Token, new SubscriptionDetails());
-            details.QuoteSubscription.AddOrUpdate(quoteUpdates.Exchange, quoteUpdates, (_, _) => quoteUpdates);
+            details.QuoteSubscription.AddOrUpdate(quoteUpdates.Exchange, quoteUpdates, (_, _) => { return quoteUpdates; });
+
+            await UpdateOhlcv(quoteUpdates.TradingSymbol,
+                            quoteUpdates.Exchange,
+                            quoteUpdates.Token,                                                       
+                            quoteUpdates.LastTradeQuantity,
+                            quoteUpdates.LastTradePrice,
+                            quoteUpdates.LastTradeDateTime);
         }
 
         private async Task OnQuoteUpdates(QuoteSubscriptionUpdates Object)
         {
             if (Object is not null)
             {
-                var update = UpdateQuotes(Object);
-                if (_onStrategyEvents is not null)
-                    await _onStrategyEvents(new StrategyEvent
+                var update = await UpdateQuotes(Object);
+                if (OnQuote is not null)
+                    await OnQuote(new StrategyEvent
                     {
-                        EventType = StrategyEngineEventType.Quotes,                        
                         Exchange = update.Exchange,
                         Token = update.Token,
                         TradingSymbol = update.TradingSymbol
@@ -112,7 +137,7 @@ namespace StrategyEngine
 
         private Task OnQuoteUpdates(object? _, SubscriptionType subscriptionType, string rawMessage, object? subscriptionObject)
         {
-            var msg = string.Format($": Message processed: '{rawMessage}'");
+            var msg = string.Format("Message processed: '{0}'", rawMessage);
 
             switch (subscriptionType)
             {
@@ -120,15 +145,15 @@ namespace StrategyEngine
                     _logger.LogInformation("[OnQuoteUpdates-ConnectAck] {msg}", msg);
                     SubscribeQuoteAsync(_subscribedSymbols).GetAwaiter().GetResult();
                     break;
-                case SubscriptionType.SubscribeTouchLineAck:
+                case SubscriptionType.SubscribeQuoteAck:
                     _logger.LogInformation("[OnQuoteUpdates-SubscribeQuoteAck] {msg}", msg);
-                    UpdateQuotes((QuoteSubscriptionRequestAck)subscriptionObject!);
+                    UpdateQuotes((QuoteSubscriptionRequestAck)subscriptionObject!).GetAwaiter().GetResult();
                     break;
-                case SubscriptionType.UnsubscribeTouchLineAck:
+                case SubscriptionType.UnsubscribeQuoteAck:
                     _logger.LogInformation("[OnQuoteUpdates-UnSubscribeQuoteLineAck] {msg}", msg);
                     UnSubscribeQuoteAsync(_subscribedSymbols).GetAwaiter().GetResult();
                     break;
-                case SubscriptionType.SubscribeTouchLineUpdates:
+                case SubscriptionType.SubscribeQuoteUpdates:
                     _logger.LogInformation("[OnQuoteUpdates-SubscribeQuoteUpdates] {msg}", msg);
                     if (subscriptionObject is QuoteSubscriptionUpdates Object)
                         _queue.WriteAsync(Object).GetAwaiter().GetResult();

@@ -12,11 +12,11 @@ BEGIN
                
         MERGE dbo.Positions AS TARGET
             USING @tvpData AS Source
-                ON TARGET.Token = Source.Token AND TARGET.Exchange = Source.Exchange AND cast(TARGET.CreatedAt as date) = cast( Source.CreatedAt as date)
+                ON TARGET.Token = Source.Token AND TARGET.Exchange = Source.Exchange AND Target.ProductDisplayName = Source.ProductDisplayName
+                AND cast(TARGET.CreatedAt as date) = cast( Source.CreatedAt as date)
              WHEN MATCHED THEN
                 UPDATE SET
                     Target.UserId = Source.UserId,
-                    Target.ProductDisplayName = Source.ProductDisplayName,
                     Target.ProductType = Source.ProductType,
                     Target.NetPositionQuantity = Source.NetPositionQuantity,
                     Target.NetAveragePositionPrice = Source.NetAveragePositionPrice,

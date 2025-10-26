@@ -1,6 +1,7 @@
 ﻿using DailyRunner.Helpers;
 using FlatTrade;
 using FlatTrade.Common.Helpers;
+using FlatTrade.Common.Types;
 using FlatTrade.Common.Types.Base;
 using FlatTrade.UserManager;
 using Microsoft.Extensions.Configuration;
@@ -102,13 +103,13 @@ namespace DailyRunner
                 _logger.LogError("\n--- One or more tasks failed: ---");
                 foreach (var ex in ae.Flatten().InnerExceptions)
                 {
-                    _logger.LogError(ex, "  Error: {ex.GetType().Name} - {ex.Message}", ex.GetType().Name, ex.Message);
+                    _logger.LogError(ex, "  Error: {ex.TypeName} - {ex.Message}", ex.GetType().Name, ex.Message);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogCritical(ex, "\n--- An unexpected error occurred: ---");
-                _logger.LogCritical("  Error: {ex.GetType().Name} - {ex.Message}", ex.GetType().Name, ex.Message);
+                _logger.LogCritical("  Error: {ex.TypeName} - {ex.Message}", ex.GetType().Name, ex.Message);
             }
             finally
             {

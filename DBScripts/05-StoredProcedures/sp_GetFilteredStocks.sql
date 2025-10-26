@@ -13,7 +13,6 @@ CREATE PROCEDURE  [dbo].[sp_GetFilteredStocks]
 AS
 BEGIN
     SET NOCOUNT ON;
-    SET TRANSACTION ISOLATION LEVEL SNAPSHOT;
 
     Declare @TableName1 NVARCHAR(100) ;
     Declare @TableName2 NVARCHAR(100) ;

@@ -1,11 +1,9 @@
-﻿
-using StrategyEngine.Model;
-
-namespace StrategyEngine.Strategy
+﻿namespace StrategyEngine.Strategy
 {
+    internal delegate Task OnUpdate(object obj);
+
     internal interface IStrategy
     {
-        Task<StrategySignal?> Process(StrategyEvent strategyEvent);
-        IEnumerable<StrategyEngineEventType> GetStrategyEngineEventTypes();
+        Task Process(object? obj);
     }
 }

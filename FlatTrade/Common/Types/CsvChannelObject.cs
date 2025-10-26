@@ -1,4 +1,4 @@
-﻿namespace DailyRunner
+﻿namespace FlatTrade.Common.Types
 {
     public class CsvChannelObject
     {

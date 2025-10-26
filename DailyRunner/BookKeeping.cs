@@ -1,6 +1,7 @@
 ﻿using DailyRunner.Helpers;
 using FlatTrade;
 using FlatTrade.Common.Helpers;
+using FlatTrade.Common.Types;
 using FlatTrade.Common.Types.Base;
 using FlatTrade.HoldingsManager;
 using FlatTrade.MarketInfoManager;
@@ -11,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Data;
 using System.Diagnostics;
+using static FlatTrade.Common.Helpers.DataReaderHelper;
 
 namespace DailyRunner
 {
@@ -41,6 +43,41 @@ namespace DailyRunner
         public string TradingSymbol2 { get; set; } = string.Empty;
         public long Token2 { get; set; }
     }
+
+    internal class BrokerageAndTaxes 
+    {
+        public string TradingSymbol { get; set; } = string.Empty;
+     
+        [Transform(typeof(EnumTransformer<Exchange>))]
+        public Exchange Exchange { get; set; }
+        public decimal BrokerageAmount { get; set; }
+        public decimal ClearingMemberAmount { get; set; }
+        public string ExchangeOrderNumber { get; set; } = string.Empty;
+        public DateTime FillDateTime { get; set; }
+        public long FillId { get; set; }        
+        public decimal FillPrice { get; set; }
+        public long FillQuantity { get; set; }
+        public decimal Gst { get; set; }
+        public decimal InvestorProtectionFundTrustAmount { get; set; }
+        public long NorenOrderNumber { get; set; }
+        public long SnoOrderNumber { get; set; }
+        public DateTime NorenTime { get; set; }
+
+        [Transform(typeof(EnumTransformer<ProductType>))]
+        public ProductType ProductType { get; set; }
+        public string Remarks { get; set; } = string.Empty;
+        public decimal SebiCharges { get; set; }
+        public decimal ExchangeCharges { get; set; }
+        public decimal SecurityTransactionTax { get; set; }
+        public decimal StampDuty { get; set; }
+        public long Token { get; set; }
+        public decimal TotalCharges { get; set; }
+
+        [Transform(typeof(EnumTransformer<TransactionType>))]
+        public TransactionType TransactionType { get; set; }                      
+        public string Url { get; set; } = string.Empty;
+    }
+
     internal class BookKeeping
     {
         private readonly ILogger<BookKeeping> _logger;
@@ -63,11 +100,18 @@ namespace DailyRunner
         private readonly string _equityHoldingsTvpTypeName = "[dbo].[THoldings]";
 
         private readonly string _equityPositionBookStoredProcedureName = "[dbo].[sp_UpsertPositions]";
-        private readonly string _equityPositionBookTvpTypeName = "[dbo].[TPositions]";        
+        private readonly string _equityPositionBookTvpTypeName = "[dbo].[TPositions]";
+
+        private readonly string _equityGetTradeBookProcedureName = "[dbo].[sp_GetTradeBook]";
+        private readonly string _equityUpsertBrokerageAndTaxesStoredProcedureName = "[dbo].[sp_UpsertBrokerageAndTaxes]";
+        private readonly string _equityBrokerageAndTaxesTvpTypeName = "[dbo].[TBrokerageAndTaxes]";
+
 
         private readonly ConcurrentBag<Task?> _taskList = [];
         private readonly CsvWriter? _csvWriter;
         private readonly DbWriter? _dbWriter;
+
+        private readonly DbReader? _dbReader;
 
         public BookKeeping(Api api, IConfiguration config, ILoggerFactory loggerFactory)
         {
@@ -77,10 +121,12 @@ namespace DailyRunner
             if (!_enabled)
                 return;
 
+            var connectionString = config["Database:ConnectionString"] ?? string.Empty;
+            _dbReader = new(connectionString, loggerFactory);
+
             var writeToDbEnabled = Convert.ToBoolean(config["BookKeeping:WriteToDb:Enabled"] ?? "false");
             if (writeToDbEnabled)
-            {
-                var connectionString = config["Database:ConnectionString"] ?? string.Empty;
+            {            
                 var dbChannelCapacity = Convert.ToInt32(config["BookKeeping:WriteToDb:ChannelCapacity"] ?? "5000");
                 var writeBatchSize = Convert.ToInt32(config["BookKeeping:WriteToDb:WriteBatchSizeInDb"] ?? "5000");
 
@@ -121,13 +167,13 @@ namespace DailyRunner
                 _logger.LogError("\n--- One or more tasks failed: ---");
                 foreach (var ex in ae.Flatten().InnerExceptions)
                 {
-                    _logger.LogError(ex, "  Error: {ex.GetType().Name} - {ex.Message}", ex.GetType().Name, ex.Message);
+                    _logger.LogError(ex, "  Error: {ex.TypeName} - {ex.Message}", ex.GetType().Name, ex.Message);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogCritical(ex, "\n--- An unexpected error occurred: ---");
-                _logger.LogCritical("  Error: {ex.GetType().Name} - {ex.Message}", ex.GetType().Name, ex.Message);
+                _logger.LogCritical("  Error: {ex.TypeName} - {ex.Message}", ex.GetType().Name, ex.Message);
             }
             finally
             {
@@ -149,10 +195,8 @@ namespace DailyRunner
             var (orderBook, mesg) = await _api.Order.GetOrderBookAsync();
             if (orderBook is null)
             {
-                if (mesg != Constants.StatusOk)
+                if (mesg != Constants.StatusOk && !mesg.Contains("no data"))
                     _logger.LogError("Error while fetching orders : {mesg}", mesg);
-                else
-                    _logger.LogInformation("No orders found: {mesg}", mesg);
             }
             return orderBook ?? [];
         }
@@ -190,10 +234,8 @@ namespace DailyRunner
             var (tradeBook, mesg) = await _api.Trade.GetTradeBookAsync();
             if (tradeBook is null)
             {
-                if (mesg != Constants.StatusOk)
+                if (mesg != Constants.StatusOk && !mesg.Contains("no data"))
                     _logger.LogError("Error while fetching trades : {mesg}", mesg);
-                else
-                    _logger.LogInformation("No trades found: {mesg}", mesg);
             }
             return tradeBook ?? [];
         }
@@ -230,10 +272,8 @@ namespace DailyRunner
             var (orderHistory, mesg) = await _api.Order.GetSingleOrderHistoryAsync(norenOrderNumber);
             if (orderHistory is null)
             {
-                if (mesg != Constants.StatusOk)
+                if (mesg != Constants.StatusOk && !mesg.Contains("no data"))
                     _logger.LogError("Error while fetching order history : {mesg}", mesg);
-                else
-                    _logger.LogInformation("No order history found: {mesg}", mesg);
             }
             return orderHistory ?? [];
         }
@@ -299,7 +339,6 @@ namespace DailyRunner
             if (tradeBookResponse is not null && tradeBookResponse.Any())
                 _taskList.Add(WriteTradeBookResponse(tradeBookResponse));
 
-
             var marginEquitiesResponse = await GetMarginEquitiesFromServerAsync();
             _logger.LogInformation("[BookKeeping-4] Fetched {marginEquitiesResponse} margin symbols from margin equity calculator webpage.", marginEquitiesResponse.Count());
             if (marginEquitiesResponse is not null && marginEquitiesResponse.Any())
@@ -314,28 +353,116 @@ namespace DailyRunner
             _logger.LogInformation("[BookKeeping-6] Fetched {positionBookResponse} positions.", positionBookResponse.Count());
             if (positionBookResponse is not null && positionBookResponse.Any())
                 _taskList.Add(WritePositionBookResponse(positionBookResponse));
+
+            var brokerageAndTaxesResponse = await UpsertBrokerageAndTaxesAsync(tradeBookResponse ?? []);
+            _logger.LogInformation("[BookKeeping-7] Fetched {brokerageAndTaxesResponse} (From Db + CurrrentDay) trades to calculate tax and brokerage.", brokerageAndTaxesResponse.Count());
+            if (brokerageAndTaxesResponse is not null && brokerageAndTaxesResponse.Any())
+                _taskList.Add(WriteBrokerageResponse(brokerageAndTaxesResponse));
+        }
+
+        private async Task<IEnumerable<TradeBookResponse>> GetTradeBookFromDbAsync()
+        {
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@StartDate", DBNull.Value }
+            };
+
+            // Call the SP and map result
+            return await _dbReader!.ExecuteStoredProcedure(_equityGetTradeBookProcedureName, parameters!,
+                                                            reader => DataReaderHelper.MapReaderTo<TradeBookResponse>(reader));
+        }
+
+        private async Task<IEnumerable<BrokerageAndTaxes>> UpsertBrokerageAndTaxesAsync(IEnumerable<TradeBookResponse> currentTrades)
+        {
+            var tradesInfo = await GetTradeBookFromDbAsync();
+            var result = currentTrades
+                        .Concat(tradesInfo)
+                        .GroupBy(x => new { x.Token, x.Exchange, x.FillDateTime, x.FillId, x.NorenOrderNumber, x.SnoOrderNumber, x.ExchangeOrderNumber, x.ExchangeTime })
+                        .Select(g => g.First());
+
+            var tasks = result.Select(trade =>
+            Task.Run(async () =>
+            {
+                var (fees, msg) = await _api.MarketInfo.GetBrokerageAsync(
+                                                                            trade.TransactionType,
+                                                                            trade.Exchange,
+                                                                            trade.ProductType,
+                                                                            trade.TradingSymbol,
+                                                                            trade.FillPrice,
+                                                                            trade.FillQuantity);
+                if (fees is null)
+                {
+                    _logger.LogError("Unable to get brokerage and tax information for {0}/{1}({2}), fill id {3}. Error: {msg}", trade.Exchange, trade.TradingSymbol, trade.Token, trade.FillId, msg);
+                    return default;
+                }
+
+                return new BrokerageAndTaxes
+                {                    
+                    TradingSymbol = trade.TradingSymbol,
+                    Exchange = trade.Exchange,
+                    BrokerageAmount = fees.BrokerageAmount,
+                    ClearingMemberAmount = fees.ClearingMemberAmount,
+                    ExchangeOrderNumber = trade.ExchangeOrderNumber,
+                    FillDateTime = trade.FillDateTime,
+                    FillId = trade.FillId,
+                    FillPrice = trade.Price,
+                    FillQuantity = trade.Quantity,
+                    Gst = fees.Gst,
+                    InvestorProtectionFundTrustAmount = fees.InvestorProtectionFundTrustAmount,
+                    NorenOrderNumber = trade.NorenOrderNumber,
+                    SnoOrderNumber = trade.SnoOrderNumber,
+                    NorenTime = trade.NorenTime,
+                    ProductType = trade.ProductType,
+                    Remarks = fees.Remarks,
+                    SebiCharges = fees.SebiCharges,
+                    ExchangeCharges = fees.ExchangeCharges,
+                    SecurityTransactionTax = fees.SecurityTransactionTax,
+                    StampDuty = fees.StampDuty,
+                    Token = trade.Token,
+                    TotalCharges = fees.TotalCharges,
+                    TransactionType = trade.TransactionType,
+                    Url = fees.Url
+                };
+            })
+            );
+
+            var results =  await Task.WhenAll(tasks);
+            return results.Where(r => r != null)!;
+        }
+        private async Task WriteBrokerageResponse(IEnumerable<BrokerageAndTaxes> dataSet)
+        {
+            var (header, resultSet) = Utility.ToCsv(dataSet);
+
+            if (_csvWriter is not null)
+            {
+                var csvResult = new CsvChannelObject
+                {
+                    FileName = $"Fees\\BrokerageAndTaxes_{DateTime.Now:yyyyMMdd}.csv",
+                    Header = header,
+                    Records = resultSet
+                };
+                await _csvWriter.WriteCsvAsync(csvResult);
+            }
+
+            if (_dbWriter is not null)
+            {
+                var dbResult = new DbChannelObject
+                {
+                    TvpName = _equityBrokerageAndTaxesTvpTypeName,
+                    StoredProcedureName = _equityUpsertBrokerageAndTaxesStoredProcedureName,
+                    Records = Utility.ToDataTable(dataSet)
+                };
+                await _dbWriter.WriteDbAsync(dbResult);
+            }
         }
 
         private async Task<IEnumerable<PositionBookResponse>> GetPositionBookFromServerAsync()
         {
-            //var currDateTime = DateTime.UtcNow.ToLocalTime();
-            //var StartHourOfCurrentDate = currDateTime.Date;
-            //var EndHourOfCurrentDate = StartHourOfCurrentDate.Date.AddHours(9);
-            //StartHourOfCurrentDate = EndHourOfCurrentDate.Date.AddHours(-10).Date.AddMinutes(50);
-
-            //if (currDateTime >= StartHourOfCurrentDate && currDateTime <= EndHourOfCurrentDate)
-            //{
-            //    _logger.LogWarning("Position book is not allowed to execute between {StartHourOfCurrentDate} and {EndHourOfCurrentDate}.", StartHourOfCurrentDate, EndHourOfCurrentDate);
-            //    return [];
-            //}
-
             var (resp, mesg) = await _api.Trade.GetPositionBookAsync();
             if (resp is null)
             {
-                if (mesg != Constants.StatusOk)
+                if (mesg != Constants.StatusOk && !mesg.Contains("no data"))
                     _logger.LogError("Error while fetching positions : {mesg}", mesg);
-                else
-                    _logger.LogInformation("No positions found: {mesg}", mesg);
             }
             return resp ?? [];
         }
@@ -345,10 +472,8 @@ namespace DailyRunner
             var (resp, mesg) = await _api.Holdings.GetHoldingsAsync();
             if (resp is null)
             {
-                if (mesg != Constants.StatusOk)
+                if (mesg != Constants.StatusOk && !mesg.Contains("no data"))
                     _logger.LogError("Error while fetching holdings : {mesg}", mesg);
-                else
-                    _logger.LogInformation("No holdings found: {mesg}", mesg);
             }
             return resp ?? [];
         }

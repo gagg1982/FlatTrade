@@ -37,7 +37,7 @@
                         "CallsPerSec": 10,
                         "CallsPerMin": 80
                     }
-                }            
+                }
             }
         }
     },
@@ -91,9 +91,29 @@
         "Enabled": true,
 
         "WriteToFile": {
-            "Enabled": false,
+            "Enabled": true,
             "ChannelCapacity": 5000,
             "CsvFilePath": "../../../CsvData/StocksOhlcv/"
+        },
+        "WriteToDb": {
+            "Enabled": true,
+            "ChannelCapacity": 5000,
+            "WriteBatchSizeInDb": 5000
+        }
+    },
+
+    "FillMissingOhlcv": {
+        "DefaultStartDateIfMissing": 200,
+        "StartDate": "2025-10-01",
+        "DailyPricesEnabled": true,
+        "OneMinutePricesEnabled": true,
+
+        "Enabled": true,
+
+        "WriteToFile": {
+            "Enabled": true,
+            "ChannelCapacity": 5000,
+            "CsvFilePath": "../../../CsvData/MissingStocksOhlcv/"
         },
         "WriteToDb": {
             "Enabled": true,
@@ -124,7 +144,7 @@
         "ExcludedCA": [],
 
         "NseCaUrl": "https://www.nseindia.com/api/corporates-corporateActions?index=equities&from_date=[from_date]&to_date=[to_date]",
-        "BseCaUrl": "https://www.nseindia.com/api/corporates-corporateActions?index=equities&from_date=[from_date]&to_date=[to_date]",        
+        "BseCaUrl": "https://www.nseindia.com/api/corporates-corporateActions?index=equities&from_date=[from_date]&to_date=[to_date]",
 
         "WriteToFile": {
             "Enabled": true,

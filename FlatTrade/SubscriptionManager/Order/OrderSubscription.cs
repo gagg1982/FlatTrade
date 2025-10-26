@@ -89,12 +89,10 @@ namespace FlatTrade.SubscriptionManager.Order
                             await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<OrderSubscriptionUpdates>(subscriptionEvent.RawMessage));
                         break;
                     case SubscriptionType.SubscribeOrderAck:
-                        _logger.LogInformation("[Order Subscription]: SubscribeOrderAck is received.");
                         if (_onSubscriptionEvents is not null)
                             await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<OrderSubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;
                     case SubscriptionType.UnsubscribeOrderAck:
-                        _logger.LogInformation("[Order Subscription]: Un-SubscribeOrderAck is received.");
                         if (_onSubscriptionEvents is not null)
                             await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<OrderUnsubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;
@@ -105,15 +103,15 @@ namespace FlatTrade.SubscriptionManager.Order
             }
             catch (JsonSerializationException e)
             {
-                _logger.LogError("[Order Subscription]: OnMessageReceived Serialization Exception : {e.Message}", e.Message);
+                _logger.LogError("[Order Subscription]: OnMessageReceived Serialization Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
             catch (ArgumentOutOfRangeException e)
             {
-                _logger.LogError("[Order Subscription]: OnMessageReceived ArgumentOutOfRange Exception : {e.Message}", e.Message);
+                _logger.LogError("[Order Subscription]: OnMessageReceived ArgumentOutOfRange Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
             catch (Exception e)
             {
-                _logger.LogError("[Order Subscription]: OnMessageReceived Exception : {e.Message}", e.Message);
+                _logger.LogError("[Order Subscription]: OnMessageReceived Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
         }
     }

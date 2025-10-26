@@ -32,8 +32,13 @@
   <ItemGroup>
     <Content Include="01-Tables\02-Base.sql" />
     <Content Include="01-Tables\03-Data.sql" />
+    <Content Include="05-StoredProcedures\sp_GetExcludedStockInstruments.sql" />
+    <Content Include="05-StoredProcedures\sp_GetTradeBook.sql" />
     <Content Include="05-StoredProcedures\sp_SanityOnDailyCandles.sql" />
     <Content Include="05-StoredProcedures\sp_GeneratePAndLSummary.sql" />
+    <Content Include="05-StoredProcedures\sp_SanityOnDailyCandles_MissingDates.sql" />
+    <Content Include="05-StoredProcedures\sp_SantyOnOneMinuteCandles.sql" />
+    <Content Include="05-StoredProcedures\sp_UpsertBrokerageAndTaxes.sql" />
     <Content Include="05-StoredProcedures\sp_UpsertExchanges.sql" />
     <Content Include="05-StoredProcedures\sp_UpsertHoldings.sql" />
     <Content Include="05-StoredProcedures\sp_UpsertMarginEquity.sql" />
@@ -47,6 +52,7 @@
     <Content Include="05-StoredProcedures\sp_UpsertOrderBook.sql" />
     <Content Include="05-StoredProcedures\sp_UpsertSingleOrderHistory.sql" />
     <Content Include="05-StoredProcedures\sp_UpsertTradeBook.sql" />
+    <Content Include="05-StoredProcedures\sp_SanityOnOneMinuteCandles_MissingDates.sql" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

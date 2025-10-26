@@ -118,7 +118,7 @@ namespace FlatTrade.MarketInfoManager
         /// <param name="endDateTime"></param>
         /// <param name="interval"></param>
         /// <returns></returns>
-        public async virtual Task<(IEnumerable<TimePriceDataResponse>?, string)> GetTimePriceDataAsync(Exchange exchange, string tradngSymbol, DateTime startDateTime, DateTime endDateTime, ChartInterval interval)
+        public async virtual Task<(IEnumerable<TimePriceDataResponse>?, string)> GetTimePriceDataAsync(Exchange exchange, string tradingSymbol, DateTime startDateTime, DateTime endDateTime, ChartInterval interval)
         {
             var (accessTokenResult, eMsg) = await _authentication.GetAccessTokenAsync();
             if (accessTokenResult is null)
@@ -131,7 +131,7 @@ namespace FlatTrade.MarketInfoManager
             {
                 UserId = accessTokenResult.ClientCode,
                 Exchange = exchange,
-                TradingSymbol = Uri.EscapeDataString(tradngSymbol),
+                TradingSymbol = Uri.EscapeDataString(tradingSymbol),
                 EpochEndDateTime = (long)(endDateTime.Date - DateTime.UnixEpoch).TotalSeconds,
                 EpochStartDateTime = (long)(startDateTime.Date - DateTime.UnixEpoch).TotalSeconds,
                 Interval = interval
@@ -364,6 +364,32 @@ namespace FlatTrade.MarketInfoManager
                 _logger.LogError("NOK: {msg}", msg);
             }
             return (equities, msg);
+        }
+
+        public async virtual Task<(BrokerageResponse?, string)> GetBrokerageAsync(TransactionType tranType, Exchange exchange, ProductType productType, string tradingSymbol, decimal price, long quantity)
+        {
+            var (accessTokenResult, eMsg) = await _authentication.GetAccessTokenAsync();
+            if (accessTokenResult is null)
+            {
+                eMsg = $"Cannot access Brokerage details. {eMsg}";
+                return (default, eMsg);
+            }
+
+            var brokerageRequest = new BrokerageRequest
+            {
+                UserId = accessTokenResult.ClientCode,
+                AccountId = accessTokenResult.ClientCode,
+                Exchange = exchange,
+                TradingSymbol = $"{Uri.EscapeDataString(tradingSymbol)}",
+                Price = price,
+                ProductType = productType,
+                Quantity = quantity,
+                TransactionType = tranType
+            };
+            var serializedUserDetails = JsonConvert.SerializeObject(brokerageRequest);
+
+            string requestParams = $"jData={serializedUserDetails}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
+            return await _httpClient.PostMessageAsync<BrokerageResponse>(EndPoints.BrokerageUrl, requestParams);
         }
 
         static decimal ParseDecimal(string input)

@@ -1,8 +1,7 @@
 ﻿using System.Data;
-
-namespace DailyRunner
+namespace FlatTrade.Common.Types
 {
-    internal class DbChannelObject
+    public class DbChannelObject
     {
         public string TvpName { get; set; } = string.Empty;
         public string StoredProcedureName { get; set; } = string.Empty;

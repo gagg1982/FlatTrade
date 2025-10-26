@@ -1,22 +1,27 @@
-﻿using FlatTrade.MarketInfoManager;
-using StrategyEngine.Model;
-using System.Threading.Channels;
+﻿using FlatTrade.Common.Types;
+using FlatTrade.MarketInfoManager;
 
 namespace StrategyEngine.Helpers
 {
     internal class Utility
-    {
-        internal static Channel<T> CreateBoundedChannel<T>(int capacity)
+    {        
+        public static DateTime AlignToInterval(DateTime input, int intervalMinutes)
         {
-            var options = new BoundedChannelOptions(capacity)
-            {
-                FullMode = BoundedChannelFullMode.Wait,
-                SingleReader = true, // Can have multiple readers if needed
-                SingleWriter = true // Can have multiple writers if needed      
-            };
-            return Channel.CreateBounded<T>(options);
-        }
+            // Remove seconds and milliseconds first
+            input = input.AddSeconds(-input.Second).AddMilliseconds(-input.Millisecond);
 
+            // Calculate total minutes since midnight
+            int totalMinutes = input.Hour * 60 + input.Minute;
+
+            // Find the aligned boundary
+            int alignedMinutes = (totalMinutes / intervalMinutes) * intervalMinutes;
+
+            // Construct aligned DateTime
+            DateTime aligned = new DateTime(input.Year, input.Month, input.Day, 0, 0, 0, input.Kind)
+                                   .AddMinutes(alignedMinutes);
+
+            return aligned;
+        }
         public static IEnumerable<PriceCandle> AggregateCandles(IEnumerable<TimePriceDataResponse> oneMinuteCandles, int targetIntervalMinutes)
         {
             // Validation for target interval
@@ -37,26 +42,11 @@ namespace StrategyEngine.Helpers
             // Group candles into buckets based on the target interval.
             // The key for grouping is the start time of each aggregation interval.
             return sortedCandles
-                .GroupBy(candle =>
-                {
-                    long totalMinutesSinceStartOfDay = (long)candle.StartDateTime.TimeOfDay.TotalMinutes;
-                    long intervalStartMinutesSinceStartOfDay = (totalMinutesSinceStartOfDay / targetIntervalMinutes) * targetIntervalMinutes;
-
-                    // Create a new DateTime for the start of the interval, preserving date part.
-                    return new DateTime(
-                        candle.StartDateTime.Year,
-                        candle.StartDateTime.Month,
-                        candle.StartDateTime.Day,
-                        (int)(intervalStartMinutesSinceStartOfDay / 60),  // Hour
-                        (int)(intervalStartMinutesSinceStartOfDay % 60),  // Minute
-                        0, // Seconds
-                        candle.StartDateTime.Kind // Preserve DateTimeKind
-                    );
-                })
+                .GroupBy(candle => AlignToInterval(candle.StartDateTime, targetIntervalMinutes))
                 .OrderBy(group => group.Key) // Order the groups by their start time
                 .Select(group => new PriceCandle // Project each group into a new ListOfPriceCandleData object
                 {
-                    TimeStamp = group.Key, // The start time of the interval
+                    StartTimeStamp = group.Key, // The start time of the interval
                     Open = group.First().OpenPrice, // Open price of the first candle in the group
                     High = group.Max(c => c.HighPrice), // Highest HighPrice in the group
                     Low = group.Min(c => c.LowPrice),   // Lowest LowPrice in the group

@@ -25,6 +25,7 @@
         public static string CancelOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/CancelOrder";
         public static string ExitSnoOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/ExitSNOOrder";
         public static string OrderMarginUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/GetOrderMargin";
+        public static string BrokerageUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/GetBrokerage";
         public static string BasketMarginUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/GetBasketMargin";
         public static string OrderBookUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/OrderBook";
         public static string MultiLegOrderBookUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/MultiLegOrderBook";

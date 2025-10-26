@@ -1,5 +1,4 @@
-﻿using HtmlAgilityPack;
-using StrategyEngine.Strategy;
+﻿using StrategyEngine.Strategy;
 using System.Collections.Concurrent;
 
 namespace StrategyEngine.RMS
@@ -17,22 +16,34 @@ namespace StrategyEngine.RMS
 
         public IRMS Clear() { Rules.Clear(); return this;}
 
-        public bool IsValidationSucceeded(StrategySignal signal)
+        public async Task<bool> IsValidationSucceeded(StrategySignal signal)
         {
             if (!Enabled)
                 return !Enabled;
 
-            bool validated = true;
+            List<Task<bool>> validated = [];
             foreach (var rule in Rules)
+                validated.Add(rule.Key.IsValidationSucceeded(signal));
+            
+            return await WaitForAllOrAnyFalseAsync(validated);
+        }
+
+        private static async Task<bool> WaitForAllOrAnyFalseAsync(IEnumerable<Task<bool>> tasks)
+        {
+            var taskList = tasks.ToList();
+            var remaining = new List<Task<bool>>(taskList);
+
+            while (remaining.Count > 0)
             {
-                if (!rule.Key.IsValidationSucceeded(signal))
-                {
-                    validated = false;
-                    break;
-                }
+                var finished = await Task.WhenAny(remaining);
+                remaining.Remove(finished);
+
+                if (!await finished) // if any returns false, exit early
+                    return false;
             }
 
-            return validated;
+            // all completed successfully (all true)
+            return true;
         }
     }
 }

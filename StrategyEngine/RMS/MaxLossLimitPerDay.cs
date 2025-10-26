@@ -4,7 +4,7 @@ namespace StrategyEngine.RMS
 {
     internal class MaxLossLimitPerDay : IRMS
     {
-        public bool IsValidationSucceeded(StrategySignal strategySignal)
+        public Task<bool> IsValidationSucceeded(StrategySignal strategySignal)
         {
             throw new NotImplementedException();
         }

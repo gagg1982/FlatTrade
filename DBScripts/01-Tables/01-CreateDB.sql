@@ -19,7 +19,6 @@ ELSE
 
 GO
 
-
 IF (1 = FULLTEXTSERVICEPROPERTY('IsFullTextInstalled'))
 begin
 EXEC [TradingApplication].[dbo].[sp_fulltext_database] @action = 'enable'
@@ -27,6 +26,9 @@ end
 GO
 
 ALTER DATABASE [TradingApplication] SET ANSI_NULL_DEFAULT OFF 
+GO
+
+ALTER DATABASE [TradingApplication] SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
 GO
 
 ALTER DATABASE [TradingApplication] SET ANSI_NULLS OFF 
@@ -84,9 +86,6 @@ ALTER DATABASE [TradingApplication] SET ALLOW_SNAPSHOT_ISOLATION OFF
 GO
 
 ALTER DATABASE [TradingApplication] SET PARAMETERIZATION SIMPLE 
-GO
-
-ALTER DATABASE [TradingApplication] SET READ_COMMITTED_SNAPSHOT OFF 
 GO
 
 ALTER DATABASE [TradingApplication] SET HONOR_BROKER_PRIORITY OFF 

@@ -14,16 +14,17 @@ namespace StrategyEngine
         private bool _disposed = false;
         private readonly Api _api;
         private readonly ILogger<TouchLineDetails> _logger;
-        private readonly OnStrategyEvents? _onStrategyEvents;
+
+        private readonly OnUpdate? OnTouchLine;
 
         private readonly Helpers.Queue<TouchLineSubscriptionUpdates> _queue;
 
         private List<SelectedSymbol> _subscribedSymbols = [];
-        public TouchLineDetails(Api api, OnStrategyEvents? onStrategyEvents, ILoggerFactory loggerFactory)
+        public TouchLineDetails(Api api, OnUpdate? onUpdate, ILoggerFactory loggerFactory)
         {
             _api = api;
             _logger = loggerFactory.CreateLogger<TouchLineDetails>();
-            _onStrategyEvents = onStrategyEvents;
+            OnTouchLine = onUpdate;
             _queue = new(50000, "TouchLineUpdateQueue", OnTouchLineUpdates, loggerFactory);
         }
 
@@ -37,8 +38,8 @@ namespace StrategyEngine
             _subscribedSymbols = [.._subscribedSymbols.Union(selectedSymbols)];
             var selectionProjection = selectedSymbols.Select(a => new KeyValuePair<Exchange, long>(a.Exchange, a.Token));
 
-            if (_api.Subscription.TouchLineSubscription._onSubscriptionEvents is null)
-                _api.Subscription.TouchLineSubscription._onSubscriptionEvents = OnTouchLineUpdates;
+            if (_api.Subscription.TouchLineSubscription.OnSubscriptionEvents is null)
+                _api.Subscription.TouchLineSubscription.OnSubscriptionEvents = OnTouchLineUpdates;
 
             var ok = await _api.Subscription.TouchLineSubscription.SubscribeAsync(selectionProjection);
             if (!ok)
@@ -82,16 +83,16 @@ namespace StrategyEngine
         }
 
         private static TouchLineSubscriptionRequestAck UpdateTouchLines(TouchLineSubscriptionUpdates touchLineUpdate)
-        {
+        {            
             var newTouchLineUpdate = new TouchLineSubscriptionRequestAck
-            { 
+            {
                 Token = touchLineUpdate.Token,
                 Exchange = touchLineUpdate.Exchange,
             };
             newTouchLineUpdate.Update(touchLineUpdate);
 
             var details = GlobalDataSet.Subscriptions.GetOrAdd(touchLineUpdate.Token, new SubscriptionDetails());
-            return details.TouchLineSubscription.AddOrUpdate(touchLineUpdate.Exchange, newTouchLineUpdate, (key, existingValue) => existingValue.Update(touchLineUpdate));            
+            return details.TouchLineSubscription.AddOrUpdate(touchLineUpdate.Exchange, newTouchLineUpdate, (key, existingValue) => { return existingValue.Update(touchLineUpdate); });
         }
 
         private async Task OnTouchLineUpdates(TouchLineSubscriptionUpdates Object)
@@ -99,10 +100,9 @@ namespace StrategyEngine
             if (Object is not null)
             {
                 var update = UpdateTouchLines(Object);
-                if (_onStrategyEvents is not null)
-                    await _onStrategyEvents(new StrategyEvent
+                if (OnTouchLine is not null)
+                    await OnTouchLine(new StrategyEvent
                     {
-                        EventType = StrategyEngineEventType.TouchLine,
                         Exchange = update.Exchange,
                         Token = update.Token,
                         TradingSymbol = update.TradingSymbol,
@@ -112,7 +112,7 @@ namespace StrategyEngine
 
         private Task OnTouchLineUpdates(object? _, SubscriptionType subscriptionType, string rawMessage, object? subscriptionObject)
         {
-            var msg = string.Format($": Message processed: '{rawMessage}'");
+            var msg = string.Format("Message processed: '{0}'", rawMessage);
 
             switch (subscriptionType)
             {

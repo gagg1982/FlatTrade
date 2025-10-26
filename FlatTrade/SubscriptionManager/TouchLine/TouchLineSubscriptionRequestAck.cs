@@ -71,16 +71,16 @@ namespace FlatTrade.SubscriptionManager.TouchLine
             lock (this)
             {
                 Exchange = val.Exchange;
-                Token = val.Token == -1 ? Token : val.Token;
+                Token = val.Token == 0 ? Token : val.Token;
                 LastTradePricePercentageChange = val.LastTradePricePercentageChange;
-                LastTradePrice = val.LastTradePrice == -1 ? LastTradePrice : val.LastTradePrice;
-                BuyPrice = val.BuyPrice == -1 ? BuyPrice : val.BuyPrice;
-                SellPrice = val.SellPrice == -1 ? SellPrice : val.SellPrice;
-                BuyQuantity = val.BuyQuantity == -1 ? BuyQuantity : val.BuyQuantity;
-                SellQuantity = val.SellQuantity == -1 ? SellQuantity : val.SellQuantity;
-                Volume = val.Volume == -1 ? Volume : val.Volume;
-            }
-            return this;
+                LastTradePrice = val.LastTradePrice == decimal.MinValue ? LastTradePrice : val.LastTradePrice;
+                BuyPrice = val.BuyPrice == decimal.MinValue ? BuyPrice : val.BuyPrice;
+                SellPrice = val.SellPrice == decimal.MinValue ? SellPrice : val.SellPrice;
+                BuyQuantity = val.BuyQuantity == 0 ? BuyQuantity : val.BuyQuantity;
+                SellQuantity = val.SellQuantity == 0 ? SellQuantity : val.SellQuantity;
+                Volume = val.Volume == 0 ? Volume : val.Volume;
+                return this;
+            }            
         }
     }
 }

@@ -1,16 +1,27 @@
 ﻿using DailyRunner.Helpers;
 using FlatTrade;
 using FlatTrade.Common.Helpers;
+using FlatTrade.Common.Types;
 using FlatTrade.Common.Types.Base;
 using FlatTrade.ScripManager;
-using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.Data;
 using System.Diagnostics;
+using static FlatTrade.Common.Helpers.DataReaderHelper;
 
 namespace DailyRunner
 {
+    internal class ExcludedStockInstrumentsObject
+    {
+        public long Token { get; set; }
+        public string TradingSymbol { get; set; } = string.Empty;
+
+        [Transform(typeof(EnumTransformer<Exchange>))]        
+        public Exchange Exchange { get; set; }
+    }
+
     internal class StocksGenerator
     {
         private readonly ILogger<StocksGenerator> _logger;
@@ -20,12 +31,16 @@ namespace DailyRunner
         private readonly CsvWriter? _csvWriter;
         private readonly DbWriter? _dbWriter;
 
+        private readonly DbReader? _dbReader;
+
         private readonly List<Exchange> _exchanges = [];
         private readonly List<InstrumentName> _instrumentName = [];
 
         private readonly string _storedProcedureName = "[dbo].[sp_UpsertStockInstruments]";
         private readonly string _tvpTypeName = "[dbo].[TStockInstruments]";
         private readonly ConcurrentBag<Task?> _taskList = [];
+
+        private readonly string _storedProcedureNameToGetExcludedStockInstruments = "[dbo].[sp_GetExcludedStockInstruments]";
 
         internal class LinkScripSymbol
         {
@@ -44,10 +59,12 @@ namespace DailyRunner
             if (!_enabled)
                 return;
 
+            var connectionString = config["Database:ConnectionString"] ?? string.Empty;
+            _dbReader = new (connectionString, loggerFactory);
+
             var writeToDbEnabled = Convert.ToBoolean(config["StockInstrumentGenerator:WriteToDb:Enabled"] ?? "false");
             if (writeToDbEnabled)
-            {
-                var connectionString = config["Database:ConnectionString"] ?? string.Empty;
+            {                
                 var dbChannelCapacity = Convert.ToInt32(config["StockInstrumentGenerator:WriteToDb:ChannelCapacity"] ?? "5000");
                 var writeBatchSize = Convert.ToInt32(config["StockInstrumentGenerator:WriteToDb:WriteBatchSizeInDb"] ?? "5000");
                 _dbWriter = new DbWriter(connectionString, writeBatchSize, dbChannelCapacity, nameof(StocksGenerator), loggerFactory);
@@ -128,13 +145,13 @@ namespace DailyRunner
                 _logger.LogError("\n--- One or more tasks failed: ---");
                 foreach (var ex in ae.Flatten().InnerExceptions)
                 {
-                    _logger.LogError(ex, "  Error: {ex.GetType().Name} - {ex.Message}", ex.GetType().Name, ex.Message);
+                    _logger.LogError(ex, "  Error: {ex.TypeName} - {ex.Message}", ex.GetType().Name, ex.Message);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogCritical(ex, "\n--- An unexpected error occurred: ---");
-                _logger.LogCritical("  Error: {ex.GetType().Name} - {ex.Message}", ex.GetType().Name, ex.Message);
+                _logger.LogCritical("  Error: {ex.TypeName} - {ex.Message}", ex.GetType().Name, ex.Message);
             }
             finally
             {
@@ -148,6 +165,18 @@ namespace DailyRunner
                 _logger.LogInformation("===========  Stock instruments uploaded. Took =========== : {msg}", stopWatch.StopAndLog());
             }
             return default;
+        }
+
+        private async Task<List<ExcludedStockInstrumentsObject>> GetExcludedStockInstruments()
+        {
+            var parameters = new Dictionary<string, object?>
+            {
+                { "@Token", DBNull.Value },
+                { "@Exchange",  DBNull.Value }
+            };
+
+            // Call the SP and map result
+            return await _dbReader!.ExecuteStoredProcedure(_storedProcedureNameToGetExcludedStockInstruments, parameters!, reader => DataReaderHelper.MapReaderTo<ExcludedStockInstrumentsObject>(reader));
         }
 
         private async Task<(IEnumerable<QuotesResponse>, 
@@ -175,11 +204,19 @@ namespace DailyRunner
                         scripList.Add(scrip);
                 }));
             }
+            
             await Utility.WhenAllSafe([..tasks]);
             tasks.Clear();
 
             scripList = [.. scripList.DistinctBy(scrip => new { scrip.Token, scrip.Exchange })];
             _logger.LogInformation("Total Scrips fetched from API: {scripList.Count}. Step 1/4...", scripList.Count);
+            var excludedStocks = await GetExcludedStockInstruments();
+            var excludedSet = new HashSet<(long Token, string TradingSymbol, Exchange Exchange)>
+                (  excludedStocks.Select(x => (x.Token, x.TradingSymbol, x.Exchange)));
+
+            scripList = [.. scripList.Where(s => !excludedSet.Contains((s.Token, s.TradingSymbol, s.Exchange)))];
+            _logger.LogInformation("Total Scrips after excluding stock instruments: {scripList.Count}. Step 1/4...", scripList.Count);
+
             ConcurrentBag<SecurityInfoResponse> securityInfoList = [];
 
             int cnt = 0;
@@ -191,15 +228,32 @@ namespace DailyRunner
                     {
                         if (Interlocked.Increment(ref cnt) % 1000 == 0)
                             _logger.LogDebug("GetSecurityInfoAsync api called {cnt}/{total}", cnt, scripList.Count);
-                        var (securityResp, msg) = await _api.Scrips.GetSecurityInfoAsync(scrip.Exchange, scrip.Token);
-
-                        if (securityResp is null || securityResp.Status != Constants.StatusOk)
+                        
+                        int retry = 1;
+                        string mesg = string.Empty;
+                        do
                         {
-                            msg = $"{scrip.Exchange}/{scrip.TradingSymbol} stock information from scrips(GetSecurityInfoAsync). {msg}";
-                            _logger.LogError("NOK: {msg}", msg);
+                            var (securityResp, msg) = await _api.Scrips.GetSecurityInfoAsync(scrip.Exchange, scrip.Token);
+                            if (securityResp is null || securityResp.Status != Constants.StatusOk)
+                            {
+                                --retry;
+                                mesg = msg;
+                                Thread.Sleep(100);
+                            }
+                            else
+                            {
+                                securityInfoList.Add(securityResp);
+                                break;
+                            }
+                        } while (retry >= 0);
+
+                        if (retry < 0)
+                        {
+                            mesg = $"{scrip.Exchange}/{scrip.TradingSymbol}({scrip.Token}) stocks information from scrips(GetSecurityInfoAsync). {mesg}";
+                            _logger.LogError("NOK: {msg}", mesg);
                             continue;
                         }
-                        securityInfoList.Add(securityResp);
+
                         var currentCount = securityInfoList.Count;
                         if (currentCount % 1000 == 0)
                             _logger.LogInformation("GetSecurityInfoAsync api response {securityInfoList}/{total} ", securityInfoList.Count, scripList.Count);
@@ -213,6 +267,7 @@ namespace DailyRunner
             _logger.LogInformation("Total Security Info fetched from API: {securityInfoList.Count}. Step 2/4...", securityInfoList.Count);
             securityInfoList = [.. securityInfoList.Where(sec => _instrumentName.Contains(sec.InstrumentName))];
             _logger.LogInformation("Filtered Security Info eligible to fetch quotes for: {securityInfoList.Count}. Step 2/4...", securityInfoList.Count);
+           
             ConcurrentBag<QuotesResponse> quoteList = [];
 
             cnt = 0;
@@ -223,15 +278,31 @@ namespace DailyRunner
                     _logger.LogDebug("GetQuotesAsync api called {cnt}/{total}", cnt, securityInfoList.Count);
                     //Thread.Sleep(1000);
                 }
-                var (quotesResp, msg) = await _api.Scrips.GetQuotesAsync(scrip.Exchange, scrip.Token);
-
-                if (quotesResp is null || quotesResp.Status != Constants.StatusOk)
+                int retry = 2;
+                string mesg = string.Empty;
+                do
                 {
-                    msg = $"{scrip.Exchange} stocks information from scrips(GetQuotesAsync). {msg}";
-                    _logger.LogError("NOK: {msg}", msg);
+                    var (quotesResp, msg) = await _api.Scrips.GetQuotesAsync(scrip.Exchange, scrip.Token);
+                    if (quotesResp is null || quotesResp.Status != Constants.StatusOk)
+                    {
+                        --retry;
+                        mesg = msg;
+                        Thread.Sleep(500);
+                    }
+                    else
+                    {
+                        quoteList.Add(quotesResp);
+                        break;
+                    }
+                } while (retry >= 0);
+
+                if(retry < 0)
+                {
+                    mesg = $"{scrip.Exchange}/{scrip.TradingSymbol}({scrip.Token}) stocks information from scrips(GetQuotesAsync). {mesg}";
+                    _logger.LogError("NOK: {msg}", mesg);
                     continue;
                 }
-                quoteList.Add(quotesResp);
+
                 if (quoteList.Count % 500 == 0)
                 {
                     _logger.LogInformation("GetQuotesAsync api response {quoteList}/{total}", quoteList.Count, securityInfoList.Count);
@@ -254,22 +325,38 @@ namespace DailyRunner
                         if (Interlocked.Increment(ref cnt) % 500 == 0)
                             _logger.LogDebug("GetLinkedScripsAsync api called {cnt}/{total}", cnt, securityInfoList.Count);
 
-                        var (linkedScripResp, msg) = await _api.Scrips.GetLinkedScripsAsync(scrip.Exchange, scrip.Token);
-
-                        if (linkedScripResp is null || linkedScripResp.Status != Constants.StatusOk)
+                        int retry = 1;
+                        string mesg = string.Empty;
+                        do
                         {
-                            msg = $"{scrip.TradingSymbol} stocks information from scrips(GetLinkedScripsAsync). {msg}";
-                            _logger.LogError("NOK: {msg}", msg);
+                            var (linkedScripResp, msg) = await _api.Scrips.GetLinkedScripsAsync(scrip.Exchange, scrip.Token);
+                            if (linkedScripResp is null || linkedScripResp.Status != Constants.StatusOk)
+                            {
+                                --retry;
+                                mesg = msg;
+                                Thread.Sleep(100);
+                            }
+                            else
+                            {
+                                linkedScrips.Add(new LinkScripSymbol
+                                {
+                                    Token = scrip.Token,
+                                    Exchange = scrip.Exchange,
+                                    TradingSymbol = scrip.TradingSymbol,
+                                    IsFutureAllowed = linkedScripResp.LinkedFutures is not null && linkedScripResp.LinkedFutures.Count != 0,
+                                    IsOptionAllowed = linkedScripResp.LinkedOptions is not null && linkedScripResp.LinkedOptions.Count != 0
+                                });
+                                break;
+                            }
+                        } while (retry >= 0);
+
+                        if (retry < 0)
+                        {
+                            mesg = $"{scrip.Exchange}/{scrip.TradingSymbol}({scrip.Token}) stocks information from scrips(GetLinkedScripsAsync). {mesg}";
+                            _logger.LogError("NOK: {msg}", mesg);
                             continue;
                         }
-                        linkedScrips.Add(new LinkScripSymbol
-                        {
-                             Token = scrip.Token,
-                             Exchange = scrip.Exchange,
-                             TradingSymbol = scrip.TradingSymbol,
-                             IsFutureAllowed = linkedScripResp.LinkedFutures is not null && linkedScripResp.LinkedFutures.Count !=0,
-                             IsOptionAllowed = linkedScripResp.LinkedOptions is not null && linkedScripResp.LinkedOptions.Count !=0
-                        });
+                                              
                         if (linkedScrips.Count % 500 == 0)
                         {
                             _logger.LogInformation("GetLinkedScripsAsync api response {securityInfoList}/{total}", linkedScrips.Count, securityInfoList.Count);

@@ -19,13 +19,13 @@ namespace StrategyEngine
         private readonly DirectFromServer _directFromServer;
         private readonly Helpers.Queue<OrderSubscriptionUpdates> _queue;
 
-        private readonly OnStrategyEvents? _onStrategyEvents;
-        public OrderDetails(Api api, DirectFromServer directFromServer, OnStrategyEvents? onStrategyEvents, ILoggerFactory loggerFactory)
+        private readonly OnUpdate? OnOrders;
+        public OrderDetails(Api api, DirectFromServer directFromServer, OnUpdate? onOrders, ILoggerFactory loggerFactory)
         {
             _api = api;
             _logger = loggerFactory.CreateLogger<OrderDetails>();
             _directFromServer = directFromServer;
-            _onStrategyEvents = onStrategyEvents;
+            OnOrders = onOrders;
             _queue = new(5000, "OrderUpdateQueue", OnOrderUpdates, loggerFactory);
         }
 
@@ -100,22 +100,22 @@ namespace StrategyEngine
                     details!.OpenOrders.AddOrUpdate(order.NorenOrderNumber, order, (key, existingValue) => order);
                 }
 
-                if (_onStrategyEvents is not null)
+                if (OnOrders is not null)
                 {
-                    if (details.SecurityInfo.TryGetValue(order.Exchange, out ScripInfo? scrip) && scrip is not null)
+                    ScripInfo? scrip;
+                    if (details.SecurityInfo.TryGetValue(order.Exchange, out scrip) && scrip is not null)
                     {
-                        await _onStrategyEvents(new StrategyEvent
+                        await OnOrders(new StrategyEvent
                         {
-                            EventType = StrategyEngineEventType.Orders,
                             Exchange = order.Exchange,
-                            Token = scrip.Token,
+                            Token = scrip!.Token,
                             TradingSymbol = order.TradingSymbol
                         });
                     }
                     else
                     {
-                        _logger.LogError("UpdateOrderBook: Unable to get token value from SecurityInfo (GlobalDataSet) for {TradingSymbol}/{exchange}. Not sending the order update for {NorenOrderNumber}", order.TradingSymbol, order.Exchange, order.NorenOrderNumber);
-                    }
+                        _logger.LogError("UpdateOrderBook: Unable to get token value from SecurityInfo (GlobalDataSet) for {TradingSymbol}/{exchange}. Not sending the update for order number '{NorenOrderNumber}'", order.TradingSymbol, order.Exchange, order.NorenOrderNumber);
+                    }                    
                 }
                 if (isCompleted)
                 {
@@ -142,7 +142,7 @@ namespace StrategyEngine
 
         private async Task OnOrderUpdates(object? _, SubscriptionType subscriptionType, string rawMessage, object? subscriptionObject)
         {
-            var msg = string.Format($"[OnOrderUpdates]: Message processed: '{rawMessage}'");
+            var msg = string.Format("Message processed: '{0}'", rawMessage);
 
             switch (subscriptionType)
             {

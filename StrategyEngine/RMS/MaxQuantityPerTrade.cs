@@ -5,7 +5,7 @@ namespace StrategyEngine.RMS
 {
     internal class MaxQuantityPerTrade : IRMS
     {
-        public bool IsValidationSucceeded(StrategySignal strategySignal)
+        public Task<bool> IsValidationSucceeded(StrategySignal strategySignal)
         {
             throw new NotImplementedException();
         }

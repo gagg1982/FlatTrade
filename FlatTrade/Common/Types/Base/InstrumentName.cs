@@ -8,6 +8,7 @@ namespace FlatTrade.Common.Types.Base
     {
         GS,
         SG,
+        SF,
         MF,
         BH,
         UNDIND,

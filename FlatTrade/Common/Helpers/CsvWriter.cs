@@ -1,8 +1,9 @@
-﻿using FlatTrade.Common.Helpers;
+﻿using FlatTrade.Common.Types;
+using FlatTrade.SubscriptionManager.Helper;
 using Microsoft.Extensions.Logging;
 using System.Threading.Channels;
 
-namespace DailyRunner.Helpers
+namespace FlatTrade.Common.Helpers
 {
     public class CsvWriter
     {
@@ -11,13 +12,13 @@ namespace DailyRunner.Helpers
         private readonly Task _task;
         private readonly string _baseDir;
         private readonly string _writerFriendlyName;
-        public CsvWriter(string baseDir, int fileChannelCapacity, string writerFriendlyName,  ILoggerFactory loggerFactory)
+        public CsvWriter(string baseDir, int fileChannelCapacity, string writerFriendlyName, ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<CsvWriter>();
             _baseDir = Path.GetFullPath(baseDir);
             CreateDirectoryPath(baseDir);
             _writerFriendlyName = writerFriendlyName;
-            _csvFileChannel = Utility.CreateBoundedChannel<CsvChannelObject>(fileChannelCapacity);
+            _csvFileChannel = HelperUtility.CreateBoundedChannel<CsvChannelObject>(fileChannelCapacity);
             _task = WriteCsvAsync();
         }
 
@@ -70,8 +71,8 @@ namespace DailyRunner.Helpers
                 }
                 finally
                 {
-                    if((objectsProcessed + objectsfailed) % 500 == 0)
-                        _logger.LogInformation("[{_writerFriendlyName}] Total: {objectsProcessed}, Success: {objectsProcessed}{objectsfailed}", _writerFriendlyName, objectsProcessed + objectsfailed, objectsProcessed, objectsfailed > 0? ", Failed: "+ objectsfailed:string.Empty );
+                    if ((objectsProcessed + objectsfailed) % 500 == 0)
+                        _logger.LogInformation("[{_writerFriendlyName}] Total: {objectsProcessed}, Success: {objectsProcessed}{objectsfailed}", _writerFriendlyName, objectsProcessed + objectsfailed, objectsProcessed, objectsfailed > 0 ? ", Failed: " + objectsfailed : string.Empty);
                 }
             }
             _logger.LogInformation("====== [{_writerFriendlyName}] Finished processing CsvRecords. Total: {total}, Success: {processed}, Failed: {failed} ======",

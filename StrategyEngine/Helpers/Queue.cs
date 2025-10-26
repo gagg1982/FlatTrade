@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FlatTrade.SubscriptionManager.Helper;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Threading.Channels;
 
@@ -20,7 +21,7 @@ namespace StrategyEngine.Helpers
             _onQueue = onEnQueue ?? throw new ArgumentNullException(nameof(onEnQueue));
             _logger = loggerFactory.CreateLogger<Queue<T>>();
             _queueFriendlyName = queueFriendlyName;
-            _channel = Utility.CreateBoundedChannel<T>(capacity);
+            _channel = HelperUtility.CreateBoundedChannel<T>(capacity);
             
             _task = WriteAsync();
         }

@@ -13,9 +13,7 @@ namespace StrategyEngine
 
         private readonly ILogger<StrategyProcessor> _logger;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly Api _api;
-
-        private readonly OrderProcessor _orderProcessor;
+        private readonly Api _api;        
 
         private readonly DirectFromServer _directFromServer;
         private readonly IStrategy _strategy;
@@ -26,39 +24,12 @@ namespace StrategyEngine
         private readonly QuoteDetails _quoteDetails;
         //subscription based ends here
 
-        private readonly OnStrategyEvents _onUpdates;
-
-        private async Task OnUpdates(StrategyEvent strategyEvent)
-        {
-            var signal = await _strategy.Process(strategyEvent);
-            if (signal is null)
-                return;
-            return;
-            switch(signal.OutputDecision.OrderEventType)
-            {
-                case OrderEventType.Create:
-                    if(signal.OutputDecision.CreateOrder is not null)
-                        await _orderProcessor.CreateOrder(signal.OutputDecision.CreateOrder!);
-                    break;
-                case OrderEventType.Modify:
-                    if (signal.OutputDecision.ModifyOrder is not null)
-                        await _orderProcessor.ModifyOrder(signal.OutputDecision.ModifyOrder);
-                    break;
-                case OrderEventType.Cancel:
-                    if (signal.OutputDecision.CancelOrder is not null)
-                        await _orderProcessor.CancelOrder(signal.OutputDecision.CancelOrder);
-                    break;
-            }            
-        }
-
         internal StrategyProcessor(IConfiguration config, Api api, IStrategy strategy, ILoggerFactory loggerFactory)
         {
             _api = api;
-            _onUpdates = OnUpdates;
             _strategy = strategy;
             _loggerFactory = loggerFactory ?? new LoggerFactory();
             _logger = _loggerFactory.CreateLogger<StrategyProcessor>();
-            _orderProcessor = new (_api, _loggerFactory);
 
             _logger.LogInformation("[Strategy] Initializing {startegyProcessor}", nameof(StrategyProcessor));
 
@@ -66,10 +37,8 @@ namespace StrategyEngine
                 new SelectedSymbol() { Exchange = Exchange.NSE, Token = 9552, TradingSymbol ="RVNL-EQ" }];
 
             List<Task> taskList = [];
-            
-            List<StrategyEngineEventType> supportedStrategyEngineEventTypes =  _strategy.GetStrategyEngineEventTypes().ToList() ?? [];
-            var callbacks = supportedStrategyEngineEventTypes.ToDictionary(k => k, _ => _onUpdates) ?? [];            
-            _directFromServer = new(_api, callbacks, _logger);
+                        
+            _directFromServer = new(_api, _strategy.Process, _logger);
             _logger.LogInformation("[1] Initializing Securities...");
             // Making it blocking as Token is missing in OrderUpdates
              _directFromServer.UpdateSecurityInfo(selectSymbolsFortrading).GetAwaiter().GetResult();
@@ -89,17 +58,17 @@ namespace StrategyEngine
             taskList.Add(_directFromServer.UpdateCandles(selectSymbolsFortrading, priceIntervals));
 
             _logger.LogInformation("[6] Initializing OrderBook");
-            _orderDetails = new(_api, _directFromServer, supportedStrategyEngineEventTypes.Contains(StrategyEngineEventType.Orders)? OnUpdates : null, _loggerFactory);
+            _orderDetails = new(_api, _directFromServer, _strategy.Process, _loggerFactory);
             taskList.Add(_orderDetails.UpdateOrderBook());
             taskList.Add(_orderDetails.SubscribeOrderUpdates());
 
             _logger.LogInformation("[7] Initializing TouchLines");
-            _touchLineDetails = new(_api, supportedStrategyEngineEventTypes.Contains(StrategyEngineEventType.TouchLine) ? OnUpdates : null, _loggerFactory);
+            _touchLineDetails = new(_api, _strategy.Process, _loggerFactory);
             taskList.Add(_touchLineDetails.SubscribeTouchLineAsync(selectSymbolsFortrading));
 
             _logger.LogInformation("[8] Initializing Quotes With Market Depth");
-            _quoteDetails = new(_api, supportedStrategyEngineEventTypes.Contains(StrategyEngineEventType.Quotes) ? OnUpdates : null, _loggerFactory);
-            taskList.Add(_quoteDetails.SubscribeQuoteAsync(selectSymbolsFortrading));           
+            _quoteDetails = new(_api, _directFromServer, _strategy.Process, _loggerFactory);
+            taskList.Add(_quoteDetails.SubscribeQuoteAsync(selectSymbolsFortrading));
 
             //ReadConfigFile(configFile);
             //ReadRMSRules(configFile);
@@ -109,6 +78,7 @@ namespace StrategyEngine
             //FetchPositionDetails().GetAwaiter().GetResult();
             //FetchCandleData().GetAwaiter().GetResult();
 
+            Task.WhenAll(taskList).GetAwaiter().GetResult();
             ////===============================================================================================
         }
 

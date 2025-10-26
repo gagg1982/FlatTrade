@@ -1,22 +1,10 @@
 ﻿using System.Data;
 using System.Reflection;
-using System.Threading.Channels;
 
 namespace DailyRunner.Helpers
 {
     internal static class Utility
     {
-        internal static Channel<T> CreateBoundedChannel<T>(int capacity)
-        {
-            var options = new BoundedChannelOptions(capacity)
-            {
-                FullMode = BoundedChannelFullMode.Wait,
-                SingleReader = true, // Can have multiple readers if needed
-                SingleWriter = true // Can have multiple writers if needed      
-            };
-            return Channel.CreateBounded<T>(options);
-        }
-
         public async static Task WhenAllSafe(params Task?[] tasks)
         {
             await Task.WhenAll(tasks.Where(t => t != null)!);

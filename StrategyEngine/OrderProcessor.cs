@@ -5,7 +5,7 @@ using StrategyEngine.Strategy;
 
 namespace StrategyEngine
 {
-    internal class OrderProcessor(Api api, ILoggerFactory loggerFactory)
+    internal class OrderProcessor(Api api, ILoggerFactory loggerFactory) : IOrderProcessor
     {
         private readonly Api _api = api;
         private readonly ILogger<OrderProcessor> _logger = loggerFactory.CreateLogger<OrderProcessor>();

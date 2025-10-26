@@ -34,5 +34,58 @@ VALUES
 (27, 'BSE', '2025-11-05', 'Wednesday', 'Prakash Gurpurb Sri Guru Nanak Dev'),
 (28, 'BSE', '2025-12-25', 'Thursday', 'Christmas');
 
-GO
 --===========================================================================================
+TRUNCATE TABLE ExcludedStockInstruments;
+INSERT INTO dbo.ExcludedStockInstruments (Token, TradingSymbol, Exchange)
+VALUES
+    (543151, '08ABB', 'BSE'),
+    (543170, '08ADD', 'BSE'),
+    (543145, '08ADR', 'BSE'),
+    (543147, '08AMD', 'BSE'),
+    (543148, '08AMR', 'BSE'),
+    (543155, '08AQD', 'BSE'),
+    (543168, '08AQR', 'BSE'),
+    (543149, '08BPB', 'BSE'),
+    (543156, '08DPD', 'BSE'),
+    (543169, '08DPR', 'BSE'),
+    (543146, '08MPR', 'BSE'),
+    (543152, '08QPD', 'BSE'),
+    (543179, '11ADD', 'BSE'),
+    (543180, '11ADR', 'BSE'),
+    (543183, '11AMR', 'BSE'),
+    (543185, '11AQR', 'BSE'),
+    (544587, 'MIDWESTLTD', 'BSE'),
+    (538593, 'NCAPBUILAD', 'BSE'),
+    (538594, 'NCAPBUILAG', 'BSE'),
+    (538632, 'NCAPBUILBD', 'BSE'),
+    (538633, 'NCAPBUILBG', 'BSE' ),
+    (538591, 'NCAPBULADD', 'BSE'),
+    (538592, 'NCAPBULADG', 'BSE'),
+    (538630, 'NCAPBULBDD', 'BSE'),
+    (538631, 'NCAPBULBDG', 'BSE' ),
+    (14777,'121NSETEST-EQ','NSE'),
+    (14769,'091NSETEST-EQ','NSE'),
+    (14781,'141NSETEST-EQ','NSE'),
+    (14778,'131NSETEST-EQ','NSE'),
+    (12842,'G1NSETEST-EQ','NSE'),
+    (14753,'031NSETEST-EQ','NSE'),
+    (14758,'051NSETEST-EQ','NSE'),
+    (12848,'N1NSETEST-EQ','NSE'),
+    (14747,'011NSETEST-EQ','NSE'),
+    (12848,'N1NSETEST-EQ','NSE'),
+    (23447,'181NSETEST-EQ','NSE'),
+    (14784,'161NSETEST-EQ','NSE'),
+    (14782,'151NSETEST-EQ','NSE'),
+    (12863,'V1NSETEST-EQ','NSE'),
+    (12841,'11NSETEST-EQ','NSE'),
+    (14767,'081NSETEST-EQ','NSE'),
+    (14764,'071NSETEST-EQ','NSE'),
+    (14751,'021NSETEST-EQ','NSE'),
+    (14772,'101NSETEST-EQ','NSE'),
+    (23446,'171NSETEST-EQ','NSE'),
+    (14755,'041NSETEST-EQ','NSE'),
+    (14774,'111NSETEST-EQ','NSE'),
+    (14762,'061NSETEST-EQ','NSE');
+
+--===========================================================================================
+GO

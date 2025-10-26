@@ -4,6 +4,6 @@ namespace StrategyEngine.RMS
 {
     public interface IRMS
     {
-        public bool IsValidationSucceeded(StrategySignal signal);
+        public Task<bool> IsValidationSucceeded(StrategySignal signal);
     }
 }

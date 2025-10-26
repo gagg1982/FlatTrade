@@ -12,7 +12,7 @@
 
     public class SubscriptionEventArgs(SubscriptionType subscriptionType, string rawMessage) : EventArgs
     {
-        public string RawMessage { get; }= JsonConvert.DeserializeObject<string>(rawMessage.Replace("\n", "").Replace(" ",""))!;
+        public string RawMessage { get; }= rawMessage.Replace("\n", "").Replace(" ","")!;
         public SubscriptionType SubscriptionType { get; } = subscriptionType;
     }
 

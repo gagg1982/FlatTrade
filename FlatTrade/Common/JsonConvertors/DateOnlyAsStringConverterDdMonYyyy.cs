@@ -7,8 +7,8 @@ namespace FlatTrade.Common.JsonConvertors
     public class DateOnlyAsStringConverterDdMonYyyy : JsonConverter<DateOnly>
     {
         // Define the specific date format string. ISO 8601 is generally recommended.
-        private const string DateFormat = "dd-MMM-yyyy";
-
+        private static readonly string[] DateFormat = {"dd-MMM-yyyy", "dd-MM-yyyy"};
+        private const string OutputFormat = "dd-MMM-yyyy";
         /// <summary>
         /// Reads the JSON representation of the object.
         /// Converts a JSON string to a DateOnly.
@@ -43,22 +43,19 @@ namespace FlatTrade.Common.JsonConvertors
                 throw new JsonSerializationException($"Unexpected token type {reader.TokenType} when parsing DateOnly. Expected String.");
             }
 
-            if (string.IsNullOrEmpty(dateString))
+            if (string.IsNullOrEmpty(dateString) || string.CompareOrdinal(dateString,"-") == 0)
             {
                 // Decide how to handle empty strings: return default(DateOnly), throw, etc.
                 return default; // Returns 0001-01-01 for DateOnly
             }
 
-            try
-            {
                 // Parse the string to DateOnly using ParseExact for strict format matching
-                return DateOnly.ParseExact(dateString, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None);
-            }
-            catch (FormatException ex)
-            {
-                throw new JsonSerializationException(
-                    $"Cannot convert string '{dateString}' to DateOnly. Expected format '{DateFormat}'.", ex);
-            }
+            if (DateOnly.TryParseExact(dateString, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var result))
+                return result;
+
+            throw new JsonSerializationException(
+                    $"Cannot convert string '{dateString}' to DateOnly. Expected format '{DateFormat}'.");
+
         }
 
         /// <summary>
@@ -71,7 +68,7 @@ namespace FlatTrade.Common.JsonConvertors
         public override void WriteJson(JsonWriter writer, DateOnly value, JsonSerializer serializer)
         {
             // Convert the DateOnly value to a string using the defined format and InvariantCulture
-            writer.WriteValue(value.ToString(DateFormat, CultureInfo.InvariantCulture));
+            writer.WriteValue(value.ToString(OutputFormat, CultureInfo.InvariantCulture));
         }
     }
 }

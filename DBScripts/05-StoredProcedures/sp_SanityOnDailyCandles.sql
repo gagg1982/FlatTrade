@@ -4,60 +4,52 @@ GO
 
 
 CREATE OR ALTER PROCEDURE dbo.sp_SantyOnDailyCandles
-    @StartDateForOHLCVSanity Date = '01-01-2025'
+    @StartDateForOHLCVSanity Date = '01-01-2025',
+    @TradingSymbol NVARCHAR(64) = null
 AS
 BEGIN
+    SET NOCOUNT ON;
 
-    DROP TABLE IF EXISTS #TradeDates
-    --Got All working Date Starting from 01-01-2025 till current date
-    ;WITH DateRange AS
-    (
-        -- Find min and max range from your TradeCounts table
-            SELECT DATEADD(day, 1000, @StartDateForOHLCVSanity) as EndDate, @StartDateForOHLCVSanity AS StartDate
-    ),
-    AllDates AS
-    (
-        -- Generate continuous date series
-        SELECT StartDate AS TheDate
-        FROM DateRange
-        UNION ALL
-        SELECT DATEADD(DAY, 1, TheDate)
-        FROM AllDates a
-        JOIN DateRange r ON a.TheDate < r.EndDate
-    ), 
-    WeekDates As
-    (
-        SELECT * FROM
-        (
-        SELECT a.TheDate 
-        FROM AllDates a
-        WHERE  DATENAME(WEEKDAY, a.TheDate) NOT IN ('Saturday','Sunday')  -- Not weekend
-        ) a,
-        (
-        SELECT DISTINCT Exchange FROM HolidayCalendar
-        )b
+    DROP TABLE IF EXISTS #TradeDates;
+    DECLARE @EndDate DATE = CAST(GETDATE() AS DATE);
+
+    ;WITH N AS (
+            SELECT TOP (DATEDIFF(DAY, @StartDateForOHLCVSanity, @EndDate) + 1)
+            ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1 AS n
+            FROM sys.objects o1
+            CROSS JOIN sys.objects o2
     )
-    SELECT w.Exchange, w.TheDate As TradingDates INTO  #TradeDates --, h.HolidayDate
-    FROM WeekDates w
-    LEFT JOIN HolidayCalendar h ON h.HolidayDate = w.TheDate AND w.Exchange = h.Exchange
-    WHERE h.Holidaydate is NULL
-    order by Exchange, thedate asc
-    OPTION (MAXRECURSION 0);
+    SELECT DISTINCT
+           hc.Exchange,
+           DATEADD(DAY, n, @StartDateForOHLCVSanity) AS TradingDate
+    INTO #TradeDates
+    FROM N
+    CROSS JOIN (SELECT DISTINCT Exchange FROM HolidayCalendar) hc
+    WHERE DATENAME(WEEKDAY, DATEADD(DAY, n, @StartDateForOHLCVSanity)) NOT IN ('Saturday','Sunday')
+      AND NOT EXISTS (
+            SELECT 1
+            FROM HolidayCalendar h
+            WHERE h.Exchange = hc.Exchange
+              AND h.HolidayDate = DATEADD(DAY, n, @StartDateForOHLCVSanity)
+      );
+
+    CREATE INDEX IX_#TradeDates_ExchangeDate ON #TradeDates(Exchange, TradingDate);
 
 
-    SELECT distinct TradingSymbol, ExchangeCode, Token, ListingDate, SanityTradeStartDate, TradeEndDate, RequiredTradeCandles - ActualTradeCandles As MissingTradeCandles
+    SELECT distinct TradingSymbol, ExchangeCode, Token, ListingDate, TradeStartDate, TradeEndDate, SanityTradeStartDate, RequiredTradeCandles, ActualTradeCandles, RequiredTradeCandles - ActualTradeCandles As MissingTradeCandles
     FROM
     (
         Select i.Token, I.ListingDate, i.TradingSymbol, i.ExchangeCode, s.*,
-            CASE WHEN ListingDate > @StartDateForOHLCVSanity THEN ListingDate ELSE @StartDateForOHLCVSanity END as SanityTradeStartDate,
+            CASE WHEN ListingDate >= @StartDateForOHLCVSanity THEN ListingDate ELSE @StartDateForOHLCVSanity END as SanityTradeStartDate,
             ( SELECT COUNT(*) 
-            FROM #TradeDates t
-            WHERE t.Exchange = i.ExchangeCode 
-                                AND t.TradingDates >= CASE WHEN ListingDate > @StartDateForOHLCVSanity THEN ListingDate ELSE @StartDateForOHLCVSanity END
-                                AND t.TradingDates <= cast(GetDate() as DATE)) RequiredTradeCandles
+                FROM #TradeDates t
+                WHERE t.Exchange = i.ExchangeCode 
+                                AND t.TradingDate >= CASE WHEN ListingDate >= @StartDateForOHLCVSanity THEN ListingDate ELSE @StartDateForOHLCVSanity END
+                                AND t.TradingDate <= cast(GetDate() as DATE)
+            ) RequiredTradeCandles
 
         from StockInstruments i
-        LEFt JOIN 
+        LEFT JOIN 
         (
             SELECT a.*, s.StartDate as TradeStartDate, s.EndDate as TradeEndDate, s.ActualTradeCandles FROM 
             (
@@ -70,11 +62,11 @@ BEGIN
             )s
             JOIN StocksOhlcv_1440 a On a.InstrumentId =s.InstrumentId
         ) s On s.InstrumentId = i.id
-        WHERE i.Active=1
+        WHERE i.Active=1 AND (@TradingSymbol is null OR @TradingSymbol = i.TradingSymbol) AND i.Token NOT IN
+            (select Token from ExcludedStockInstruments a where i.TradingSymbol = a.TradingSymbol and i.ExchangeCode = a.Exchange and i.Token = a.token)
     ) a WHERE  RequiredTradeCandles - ActualTradeCandles > 0
-    order by TradeEndDate desc
+    order by TradeEndDate desc, MissingTradeCandles desc
     
 END
 
 GO
-

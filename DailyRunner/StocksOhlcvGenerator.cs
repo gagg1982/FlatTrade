@@ -1,10 +1,13 @@
-﻿using DailyRunner.Helpers;
-using FlatTrade;
+﻿using FlatTrade;
 using FlatTrade.Common.Helpers;
+using FlatTrade.Common.Types;
 using FlatTrade.Common.Types.Base;
 using FlatTrade.MarketInfoManager;
+using FlatTrade.SubscriptionManager;
+using FlatTrade.SubscriptionManager.Quote;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System.Collections.Concurrent;
 using System.Data;
 using System.Diagnostics;
@@ -18,6 +21,10 @@ namespace DailyRunner
         private readonly ILogger<StocksOhlcvGenerator> _logger;
         private readonly Api _api;
         private readonly bool _enabled;
+        private List<(Exchange, long, string)> _exchangeTokenSymbolTuple = [];
+
+        private List<QuoteSubscriptionRequestAck> _placeHolderToGenerateCurrentDayDailyCandles = [];
+        private List<(Exchange, long, string)> _placeHolderForExchangeTokenSymbolTuple = [];
 
         private readonly string _filePath = string.Empty;
 
@@ -42,13 +49,17 @@ namespace DailyRunner
 
         private readonly string _tvpTypeName = "[dbo].[TStocksOhlcv]";
 
-        public StocksOhlcvGenerator(Api api, IConfiguration config, ILoggerFactory loggerFactory)
+        public StocksOhlcvGenerator(Api api, IConfiguration config, IEnumerable<(Exchange, long, string)>? exchangeTokenSymbolTuple, ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<StocksOhlcvGenerator>();
             _api = api;
             _enabled = Convert.ToBoolean(config["StocksOhlcvGenerator:Enabled"] ?? "false");
             if (!_enabled)
                 return;
+
+            if(exchangeTokenSymbolTuple is not null && exchangeTokenSymbolTuple.Any())
+                _exchangeTokenSymbolTuple = exchangeTokenSymbolTuple.OrderBy(a => a.Item1).ThenBy(a => a.Item3).ToList();
+            _placeHolderForExchangeTokenSymbolTuple = _exchangeTokenSymbolTuple.ToList();
 
             var dailyPricesEnabled = Convert.ToBoolean(config["StocksOhlcvGenerator:DailyPricesEnabled"] ?? "false");
             var oneMinutePricesEnabled = Convert.ToBoolean(config["StocksOhlcvGenerator:OneMinutePricesEnabled"] ?? "false");
@@ -94,7 +105,7 @@ namespace DailyRunner
             _dateBatchSizeForDailyPrices = Convert.ToInt32(config["StocksOhlcvGenerator:DateBatchSizeForDailyPrices"] ?? "1");
         }
 
-        public async Task GenerateAndLoad(IEnumerable<(Exchange, long, string)>? exchangeTokenSymbolTuple)
+        public async Task GenerateAndLoad()
         {
             if (!_enabled)
             {
@@ -102,7 +113,7 @@ namespace DailyRunner
                 return;
             }
 
-            if (exchangeTokenSymbolTuple is null || !exchangeTokenSymbolTuple.Any())
+            if (_exchangeTokenSymbolTuple is null || !_exchangeTokenSymbolTuple.Any())
             {
                 _logger.LogWarning("NOK: No stocks tuple for the given exchanges. Unable to fetch OHLCV data.");
                 return;
@@ -112,12 +123,11 @@ namespace DailyRunner
             try
             {
                 stopWatch.Start();
-
-                exchangeTokenSymbolTuple = [.. exchangeTokenSymbolTuple.Where(a => !a.Item3.Contains("NSETEST")).OrderBy(a => a.Item1).ThenBy(a => a.Item3)];
-
                 List<Task?> tasks = [];
-                tasks.Add(GenerateOHLCVCsv_1(exchangeTokenSymbolTuple));
-                tasks.Add(GenerateOHLCVCsv_1440(exchangeTokenSymbolTuple));
+                tasks.Add(SubscribeCurrentDateOHLCVCsv_1440());
+                tasks.Add(GenerateOHLCVCsv_1());
+                tasks.Add(GenerateOHLCVCsv_1440());
+
                 await Utility.WhenAllSafe([.. tasks]);
             }
             catch (AggregateException ae)
@@ -125,13 +135,13 @@ namespace DailyRunner
                 _logger.LogError("\n--- One or more tasks failed: ---");
                 foreach (var ex in ae.Flatten().InnerExceptions)
                 {
-                    _logger.LogError(ex, "  Error: {ex.GetType().Name} - {ex.Message}", ex.GetType().Name, ex.Message);
+                    _logger.LogError(ex, "  Error: {ex.TypeName} - {ex.Message}", ex.GetType().Name, ex.Message);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogCritical(ex, "\n--- An unexpected error occurred: ---");
-                _logger.LogCritical("  Error: {ex.GetType().Name} - {ex.Message}", ex.GetType().Name, ex.Message);
+                _logger.LogCritical("  Error: {ex.TypeName} - {ex.Message}", ex.GetType().Name, ex.Message);
             }
             finally
             {
@@ -146,10 +156,98 @@ namespace DailyRunner
             }
         }
 
-        private async Task GenerateOHLCVCsv_1440(IEnumerable<(Exchange, long, string)> exchangeTokenSymbolTuple)
+
+        private async Task SubscribeCurrentDateOHLCVCsv_1440()
+        {            
+            int chunkSize = 10;
+            int cnt = 0;
+            var selection = _placeHolderForExchangeTokenSymbolTuple.Select(t => new KeyValuePair<Exchange, long>(t.Item1, t.Item2));
+            _api.Subscription.QuoteSubscription.OnSubscriptionEvents = OnQuoteUpdates;
+            foreach (var exchangeTokenSymbolBatch in selection.Chunk(chunkSize))
+            {
+                ++cnt;
+                var resp = await _api.Subscription.QuoteSubscription.SubscribeAsync(exchangeTokenSymbolBatch);
+                if (!resp)
+                    _logger.LogError("SubscribeCurrentDateOHLCVCsv_1440: Unable to subscribe (count={chunkSize}) : '{batchData}'", chunkSize, JsonConvert.SerializeObject(exchangeTokenSymbolBatch));
+            }
+            _logger.LogInformation("SubscribeCurrentDateOHLCVCsv_1440: Total subscriptions {cnt}", cnt * chunkSize);
+        }
+
+        private async Task UnSubscribeCurrentDateOHLCVCsv_1440(Exchange exchange, long token, string tradingSymbol)
+        {
+            _placeHolderForExchangeTokenSymbolTuple.Remove((exchange, token, tradingSymbol));
+            if(_placeHolderForExchangeTokenSymbolTuple.Count % 500 == 0)
+                _logger.LogInformation("UnSubscribeCurrentDateOHLCVCsv_1440: Remaining {0}", _placeHolderForExchangeTokenSymbolTuple.Count);
+            await _api.Subscription.QuoteSubscription.UnsubscribeAsync([new KeyValuePair<Exchange, long>(exchange, token)]);
+        }
+
+        private async Task GenerateOhlcvFromQuotes(QuoteSubscriptionRequestAck obj)
+        {
+            _placeHolderToGenerateCurrentDayDailyCandles.Add(obj);
+            if (_placeHolderToGenerateCurrentDayDailyCandles.Count % 500 == 0)
+                _logger.LogInformation("GenerateOhlcvFromQuotes: Current day OHLCV received {0}", _placeHolderToGenerateCurrentDayDailyCandles.Count());
+            
+            if (_placeHolderForExchangeTokenSymbolTuple is null || !_placeHolderForExchangeTokenSymbolTuple.Any())
+            {
+                var headerAndContents = GenerateHeaderAndContents(_placeHolderToGenerateCurrentDayDailyCandles);
+                if (_csvWriter_1440 is not null)
+                {
+                    string newFile = $"CurrentDayOHLCV_{(int)ChartInterval.Daily}_{DateTime.Now:yyyyMMdd}.csv";                    
+
+                    var csvChannelObject = new CsvChannelObject
+                    {
+                        FileName = newFile,
+                        Header = headerAndContents.Item1,
+                        Records = headerAndContents.Item2
+                    };
+                    await _csvWriter_1440.WriteCsvAsync(csvChannelObject);
+                }
+
+                if (_dbWriter_1440 is not null)
+                {
+                    var dbChannelObject = new DbChannelObject
+                    {
+                        TvpName = _tvpTypeName,
+                        StoredProcedureName = _storedProcedureName_1440,
+                        Records = ToDataTable(headerAndContents.Item3)
+                    };
+                    await _dbWriter_1440.WriteDbAsync(dbChannelObject);
+                }
+            }
+        }
+
+        private async Task OnQuoteUpdates(object? _, SubscriptionType subscriptionType, string rawMessage, object? subscriptionObject)
+        {
+            var msg = string.Format("Message processed: '{0}'", rawMessage);
+
+            switch (subscriptionType)
+            {
+                case SubscriptionType.ConnectAck:
+                    _logger.LogInformation("[OnQuoteUpdates-ConnectAck] {msg}", msg);
+                    await SubscribeCurrentDateOHLCVCsv_1440();
+                    break;
+                case SubscriptionType.SubscribeQuoteAck:
+                    //_logger.LogInformation("[OnQuoteUpdates-SubscribeQuoteAck] {msg}", msg);
+                    var obj = (QuoteSubscriptionRequestAck)subscriptionObject!;
+                    await UnSubscribeCurrentDateOHLCVCsv_1440(obj.Exchange, obj.Token, obj.TradingSymbol);
+                    await GenerateOhlcvFromQuotes(obj);
+                    break;
+                case SubscriptionType.UnsubscribeQuoteAck:
+                    _logger.LogDebug("[OnQuoteUpdates-UnSubscribeQuoteLineAck] {msg}", msg);                    
+                    break;
+                case SubscriptionType.SubscribeQuoteUpdates:
+                    //_logger.LogDebug("[OnQuoteUpdates-SubscribeQuoteUpdates] {msg}", msg);                    
+                    break;
+                default:
+                    _logger.LogWarning("[OnQuoteUpdates]: unknown message type '{type}' Msg '{msg}'", subscriptionType, msg);
+                    break;
+            }
+        }
+
+        private async Task GenerateOHLCVCsv_1440()
         {
             int cnt = 0;
-            foreach (var exchangeTokenSymbolBatch in exchangeTokenSymbolTuple.Chunk(150))
+            foreach (var exchangeTokenSymbolBatch in _exchangeTokenSymbolTuple.Chunk(150))
             {
                 _taskList.Add(Task.Run(async () =>
                 {
@@ -166,7 +264,7 @@ namespace DailyRunner
 
                                 if (Interlocked.Increment(ref cnt) % 500 == 0)
                                 {
-                                    _logger.LogInformation("Processed {exchangeTokenSymbol.Item1} {cnt}/{total} stocks for 1440 minute OHLCV data.", exchangeTokenSymbol.Item1, cnt, exchangeTokenSymbolTuple.Count());
+                                    _logger.LogInformation("Processed {exchangeTokenSymbol.Item1} {cnt}/{total} stocks for 1440 minute OHLCV data.", exchangeTokenSymbol.Item1, cnt, _exchangeTokenSymbolTuple.Count());
                                     //Thread.Sleep(1000);
                                 }
 
@@ -218,10 +316,10 @@ namespace DailyRunner
             }
             await Utility.WhenAllSafe([.. _taskList]);
         }
-        private async Task GenerateOHLCVCsv_1(IEnumerable<(Exchange, long, string)> exchangeTokenSymbolTuple)
+        private async Task GenerateOHLCVCsv_1()
         {
             int cnt = 0;
-            foreach (var exchangeTokenSymbolBatch in exchangeTokenSymbolTuple.Chunk(150))
+            foreach (var exchangeTokenSymbolBatch in _exchangeTokenSymbolTuple.Chunk(150))
             {
                 _taskList.Add(Task.Run(async () =>
                 {
@@ -238,7 +336,7 @@ namespace DailyRunner
 
                                 if (Interlocked.Increment(ref cnt) % 500 == 0)
                                 {
-                                    _logger.LogInformation("Processed {exchangeTokenSymbol.Item1} {cnt}/{total} stocks for 1 minute OHLCV data.", exchangeTokenSymbol.Item1, cnt, exchangeTokenSymbolTuple.Count());
+                                    _logger.LogInformation("Processed {exchangeTokenSymbol.Item1} {cnt}/{total} stocks for 1 minute OHLCV data.", exchangeTokenSymbol.Item1, cnt, _exchangeTokenSymbolTuple.Count());
                                     //Thread.Sleep(1000);
                                 }
                                 
@@ -286,30 +384,73 @@ namespace DailyRunner
             await Utility.WhenAllSafe([.. _taskList]);
         }
 
-        private static (string, IEnumerable<string>, IEnumerable<object>) GenerateHeaderAndContents(IEnumerable<EodChartDataResponse> objects, long token)
+        private static (string, IEnumerable<string>, IEnumerable<(long, PriceCandle)>) GenerateHeaderAndContents(IEnumerable<QuoteSubscriptionRequestAck> objects)
+        {
+            var joinedDataHeader = "Token,StartDateTime,Open,High,Low,Close,Volume";
+
+            IEnumerable<(long, PriceCandle)> obj = objects.Where(val => val.LastTradeDateTime != DateTime.MinValue &&
+                                                            val.DayClosePrice != decimal.MinValue &&
+                                                            val.DayHighPrice != decimal.MinValue &&
+                                                            val.DayLowPrice != decimal.MaxValue &&
+                                                            val.DayOpenPrice != decimal.MinValue)
+                                             .Select(val => (val.Token, new PriceCandle
+                                                             {
+                                                                 StartTimeStamp = val.LastTradeDateTime.Date,
+                                                                 Open = val.DayOpenPrice,
+                                                                 High = val.DayHighPrice,
+                                                                 Low = val.DayLowPrice,
+                                                                 Close = val.LastTradePrice != decimal.MinValue ? val.LastTradePrice: val.DayClosePrice,
+                                                                 Volume = val.DayVolume
+                                                             }));
+
+            List<string> lines = [];
+
+            foreach (var ohlcv in objects)
+                lines.Add($"{ohlcv.Token},{ohlcv.LastTradeDateTime.Date},{ohlcv.DayOpenPrice},{ohlcv.DayHighPrice},{ohlcv.DayLowPrice},{ohlcv.DayClosePrice},{ohlcv.DayVolume}");
+
+            return (joinedDataHeader, lines, obj);
+        }
+
+        private static (string, IEnumerable<string>, IEnumerable<(long, PriceCandle)>) GenerateHeaderAndContents(IEnumerable<EodChartDataResponse> objects, long token)
         {
             var joinedDataHeader = "Token,StartDateTime,Open,High,Low,Close,Volume";
 
             List<string> lines = [];
-            IEnumerable<object> obj = objects.Select(val => new { token, val.StartDateTime, val.OpenPrice, val.HighPrice, val.LowPrice, val.ClosePrice, val.Volume });
+            IEnumerable<(long,PriceCandle)> obj = objects.Select(val => (token, new PriceCandle { StartTimeStamp = val.StartDateTime,
+                                                                                          Open= val.OpenPrice,
+                                                                                          High= val.HighPrice,
+                                                                                          Low = val.LowPrice,
+                                                                                          Close = val.ClosePrice,
+                                                                                          Volume = (long)val.Volume }));
             foreach (var ohlcv in objects)
                 lines.Add($"{token},{ohlcv.StartDateTime},{ohlcv.OpenPrice},{ohlcv.HighPrice},{ohlcv.LowPrice},{ohlcv.ClosePrice},{ohlcv.Volume}");
 
             return (joinedDataHeader, lines, obj);
         }
 
-        private static (string, IEnumerable<string>, IEnumerable<object>) GenerateHeaderAndContents(IEnumerable<TimePriceDataResponse> objects, long token)
+        private static (string, IEnumerable<string>, IEnumerable<(long, PriceCandle)>) GenerateHeaderAndContents(IEnumerable<TimePriceDataResponse> objects, long token)
         {
             var joinedDataHeader = "Token,StartDateTime,Open,High,Low,Close,Volume";
-            IEnumerable<object> obj = objects.Select(val => new { token, val.StartDateTime, val.OpenPrice, val.HighPrice, val.LowPrice, val.ClosePrice, val.Volume });
+
+            IEnumerable<(long, PriceCandle)> obj = objects.Select(val => (token, new PriceCandle
+            {
+                StartTimeStamp = val.StartDateTime,
+                Open = val.OpenPrice,
+                High = val.HighPrice,
+                Low = val.LowPrice,
+                Close = val.ClosePrice,
+                Volume = (long)val.Volume
+            }));        
+                        
             List<string> lines = [];
+            
             foreach (var ohlcv in objects)
                 lines.Add($"{token},{ohlcv.StartDateTime},{ohlcv.OpenPrice},{ohlcv.HighPrice},{ohlcv.LowPrice},{ohlcv.ClosePrice},{ohlcv.Volume}");
 
             return (joinedDataHeader, lines, obj);
         }
 
-        private static DataTable ToDataTable(IEnumerable<object> objects)
+        private static DataTable ToDataTable(IEnumerable<(long,PriceCandle)> objects)
         {
             var table = new DataTable();
             table.Columns.Add("Token", typeof(int));
@@ -320,8 +461,8 @@ namespace DailyRunner
             table.Columns.Add("Close", typeof(decimal));
             table.Columns.Add("Volume", typeof(decimal));
 
-            foreach (dynamic obj in objects)
-                table.Rows.Add(obj.token, obj.StartDateTime, obj.OpenPrice, obj.HighPrice, obj.LowPrice, obj.ClosePrice, obj.Volume);
+            foreach (var (token,obj) in objects)
+                table.Rows.Add(token, obj.StartTimeStamp, obj.Open, obj.High, obj.Low, obj.Close, obj.Volume);
 
             return table;
         }

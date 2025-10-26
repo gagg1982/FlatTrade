@@ -2,7 +2,7 @@ IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[sp_Up
     DROP PROCEDURE [dbo].[sp_UpsertSingleOrderHistory]
 GO
 
-CREATE PROCEDURE dbo.sp_UpsertSingleOrderHistory
+CREATE OR ALTER PROCEDURE dbo.sp_UpsertSingleOrderHistory
     @tvpData dbo.TSingleOrderHistory READONLY
 AS
 BEGIN
@@ -15,7 +15,7 @@ BEGIN
        AND target.Exchange   = src.Exchange
        AND target.ReportType = src.ReportType
        AND target.KidId = src.KidId
-       AND target.FillId = src.FillId
+       AND target.NorenTime = src.NorenTime
        AND target.InternalOrderStatus = src.InternalOrderStatus
     WHEN MATCHED THEN
         UPDATE SET
@@ -24,7 +24,7 @@ BEGIN
             target.SnoOrderDt               = src.SnoOrderDt,
             target.ExchangeTime             = src.ExchangeTime,
             target.OptionalIntropExchange   = src.OptionalIntropExchange,
-            target.NorenTime                = src.NorenTime,
+            target.FillId                   = src.Fillid,
             target.ProductDisplayName       = src.ProductDisplayName,
             target.FillQuantity             = src.FillQuantity,
             target.FillPrice                = src.FillPrice,

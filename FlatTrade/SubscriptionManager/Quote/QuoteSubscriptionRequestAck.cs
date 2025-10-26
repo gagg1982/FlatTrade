@@ -1,10 +1,8 @@
 ﻿using FlatTrade.Common.JsonConvertors;
 using FlatTrade.Common.Types.Base;
 using FlatTrade.ScripManager;
-using FlatTrade.SubscriptionManager.TouchLine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using System.Diagnostics;
 
 namespace FlatTrade.SubscriptionManager.Quote
 {
@@ -15,59 +13,59 @@ namespace FlatTrade.SubscriptionManager.Quote
         public Exchange Exchange { get; set; }
 
         [JsonProperty("tk")]
-        public long Token { get; set; }
+        public long Token { get; set; } = 0;
 
         [JsonProperty("ts")]
         public string TradingSymbol { get; set; } = string.Empty;
 
         [JsonProperty("pp")]
-        public int PricePrecision { get; set; }
+        public int PricePrecision { get; set; } = 0;
 
         [JsonProperty("ls")]
-        public decimal LotSize { get; set; }
+        public decimal LotSize { get; set; } = decimal.MinValue;
 
         [JsonProperty("ti")]
-        public decimal TickSize { get; set; }
+        public decimal TickSize { get; set; } = decimal.MinValue;
 
         [JsonProperty("lp")]
-        public decimal LastTradePrice { get; set; }
+        public decimal LastTradePrice { get; set; } = decimal.MinValue;
 
         [JsonProperty("pc")]
-        public decimal LastTradePricePercentageChange { get; set; }
+        public decimal LastTradePricePercentageChange { get; set; } = decimal.MinValue;
 
         [JsonProperty("ft")]
         [JsonConverter(typeof(UnixDateTimeConverter))]
-        public DateTime LastTradeDateTime { get; set; }
+        public DateTime LastTradeDateTime { get; set; } = DateTime.MinValue;
 
         [JsonProperty("c")]
-        public decimal DayClosePrice { get; set; }
+        public decimal DayClosePrice { get; set; } = decimal.MinValue;
 
         [JsonProperty("o")]
-        public decimal DayOpenPrice { get; set; }
+        public decimal DayOpenPrice { get; set; } = decimal.MinValue;
 
         [JsonProperty("h")]
-        public decimal DayHighPrice { get; set; }
+        public decimal DayHighPrice { get; set; } = decimal.MinValue;
 
         [JsonProperty("l")]
-        public decimal DayLowPrice { get; set; }
+        public decimal DayLowPrice { get; set; } = decimal.MinValue;
 
         [JsonProperty("ap")]
-        public decimal AverageTradePrice { get; set; }
+        public decimal AverageTradePrice { get; set; } = decimal.MinValue;
 
         [JsonProperty("v")]
-        public long DayVolume { get; set; }
+        public long DayVolume { get; set; } = 0;
 
         [JsonProperty("ltq")]
-        public long LastTradeQuantity { get; set; }
+        public long LastTradeQuantity { get; set; } = 0;
 
         [JsonProperty("ltt")]
         public string LastTradeTime { get; set; } = string.Empty;
 
         [JsonProperty("tsq")]
-        public decimal TotalSellQuantity { get; set; }
+        public decimal TotalSellQuantity { get; set; } = 0;
 
         [JsonProperty("tbq")]
-        public decimal TotalBuyQuantity { get; set; }
+        public decimal TotalBuyQuantity { get; set; } = 0;
 
         [JsonConverter(typeof(QuotesResponseJsonConvertor))]
         public List<MarketDepthLevel> BestBids { get; set; } = [];
@@ -76,16 +74,16 @@ namespace FlatTrade.SubscriptionManager.Quote
         public List<MarketDepthLevel> BestAsks { get; set; } = [];
 
         [JsonProperty("uc")]
-        public decimal UpperCircuitLimit { get; set; }
+        public decimal UpperCircuitLimit { get; set; } = decimal.MinValue;
 
         [JsonProperty("lc")]
-        public decimal LowerCircuitLimit { get; set; }
+        public decimal LowerCircuitLimit { get; set; } = decimal.MinValue;
 
         [JsonProperty("52h")]
-        public decimal Wk52High { get; set; }
+        public decimal Wk52High { get; set; } = decimal.MinValue;
 
         [JsonProperty("52l")]
-        public decimal Wk52Low { get; set; }
+        public decimal Wk52Low { get; set; } = decimal.MinValue;
 
         [JsonProperty("52hd")]
         [JsonConverter(typeof(DateOnlyAsStringConverterDdMonYyyy))]
@@ -96,7 +94,7 @@ namespace FlatTrade.SubscriptionManager.Quote
         public DateOnly Wk52LowDate { get; set; }
 
         [JsonProperty("toi")]
-        public long IntervalIoChange { get; set; }
+        public long IntervalIoChange { get; set; } = 0;
 
         public QuoteSubscriptionRequestAck Update(QuoteSubscriptionUpdates val)
         {
@@ -106,14 +104,14 @@ namespace FlatTrade.SubscriptionManager.Quote
             lock (this)
             {
                 Exchange = val.Exchange;
-                Token = val.Token == -1 ? Token : val.Token;
+                Token = val.Token == 0 ? Token : val.Token;
                 LastTradeDateTime = val.LastTradeDateTime == DateTime.MinValue ? LastTradeDateTime: val.LastTradeDateTime;
-                DayVolume = val.DayVolume == -1 ? DayVolume: val.DayVolume;
-                LastTradeQuantity = val.LastTradeQuantity == -1 ? LastTradeQuantity : val.LastTradeQuantity;
+                DayVolume = val.DayVolume == 0 ? DayVolume: val.DayVolume;
+                LastTradeQuantity = val.LastTradeQuantity == 0 ? LastTradeQuantity : val.LastTradeQuantity;
                 LastTradeTime = val.LastTradeTime == string.Empty ? LastTradeTime : val.LastTradeTime;
-                TotalSellQuantity = val.TotalSellQuantity == -1 ? TotalSellQuantity : val.TotalSellQuantity;
-                TotalBuyQuantity = val.TotalBuyQuantity == -1 ? TotalBuyQuantity : val.TotalBuyQuantity;
-                LastTradePrice = val.LastTradePrice == -1 ? LastTradePrice : val.LastTradePrice;
+                TotalSellQuantity = val.TotalSellQuantity == 0 ? TotalSellQuantity : val.TotalSellQuantity;
+                TotalBuyQuantity = val.TotalBuyQuantity == 0 ? TotalBuyQuantity : val.TotalBuyQuantity;
+                LastTradePrice = val.LastTradePrice == decimal.MinValue ? LastTradePrice : val.LastTradePrice;
                 UpdateMarketDepth(val);
             }
             return this;
@@ -124,9 +122,9 @@ namespace FlatTrade.SubscriptionManager.Quote
             int cnt = 0;
             foreach(var bid in val.BestBids)
             {
-                BestBids[cnt].Price = bid.Price == -1 ? BestBids[cnt].Price : bid.Price;
-                BestBids[cnt].Quantity = bid.Quantity == -1 ? BestBids[cnt].Quantity : bid.Quantity;
-                BestBids[cnt].Orders = bid.Orders == -1 ? BestBids[cnt].Orders : bid.Orders;
+                BestBids[cnt].Price = bid.Price == decimal.MinValue ? BestBids[cnt].Price : bid.Price;
+                BestBids[cnt].Quantity = bid.Quantity == 0 ? BestBids[cnt].Quantity : bid.Quantity;
+                BestBids[cnt].Orders = bid.Orders == 0 ? BestBids[cnt].Orders : bid.Orders;
                 ++cnt;
             }            
         }

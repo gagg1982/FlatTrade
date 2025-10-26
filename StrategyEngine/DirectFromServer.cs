@@ -1,5 +1,6 @@
 ﻿using FlatTrade;
 using FlatTrade.Common.Helpers;
+using FlatTrade.Common.Types;
 using FlatTrade.Common.Types.Base;
 using FlatTrade.HoldingsManager;
 using FlatTrade.MarketInfoManager;
@@ -10,7 +11,6 @@ using StrategyEngine.Helpers;
 using StrategyEngine.Model;
 using StrategyEngine.Strategy;
 using System.Collections.Concurrent;
-using static StrategyEngine.StrategyProcessor;
 
 namespace StrategyEngine
 {
@@ -19,23 +19,24 @@ namespace StrategyEngine
         private readonly Api _api;
         private readonly ILogger _logger;
 
-        private readonly ConcurrentDictionary<StrategyEngineEventType, OnStrategyEvents?> _directFromServerEvents = [];
-
-        private static readonly IEnumerable<StrategyEngineEventType> SupportedStrategyEngineEvents = [
-            StrategyEngineEventType.Securities, StrategyEngineEventType.Trades, StrategyEngineEventType.Positions,
-            StrategyEngineEventType.Holdings, StrategyEngineEventType.Candles];
-        
-        public DirectFromServer(Api api, Dictionary<StrategyEngineEventType, OnStrategyEvents> eventTypesSubscription, ILogger logger)
+        private event OnUpdate? OnCandles;
+        private event OnUpdate? OnSecurities;
+        private event OnUpdate? OnPositions;
+        private event OnUpdate? OnHoldings;
+        private event OnUpdate? OnTrades;
+                
+        public DirectFromServer(Api api, OnUpdate? onUpdate, ILogger logger)
         {
             _api = api;
             _logger = logger;
 
-            foreach(var (eventSubscription, onStrategyEvents) in eventTypesSubscription)
-            {
-                if(SupportedStrategyEngineEvents.Contains(eventSubscription))
-                    _directFromServerEvents.AddOrUpdate(eventSubscription, onStrategyEvents, (_,_) => onStrategyEvents);
-            }
+            OnCandles += onUpdate;
+            OnSecurities += onUpdate;
+            OnPositions += onUpdate;
+            OnHoldings += onUpdate;
+            OnTrades += onUpdate;
         }
+
         public async Task UpdateTradeDetails()
         {
             var trades = await GetTradeDetailsFromServerAsync();
@@ -57,12 +58,14 @@ namespace StrategyEngine
                         }
                     });   //always replace            
 
-                if (_directFromServerEvents.TryGetValue(StrategyEngineEventType.Trades, out var handler) && handler is not null)
-                    await handler(new StrategyEvent {   EventType = StrategyEngineEventType.Trades ,
-                                                        Exchange = trade.Exchange,
-                                                        Token = trade.Token,
-                                                        TradingSymbol = trade.TradingSymbol
-                                                    });
+
+                if(OnTrades is not null)
+                    await OnTrades(new StrategyEvent
+                    {
+                        Exchange = trade.Exchange,
+                        Token = trade.Token,
+                        TradingSymbol = trade.TradingSymbol
+                    });
             }
         }
 
@@ -82,10 +85,9 @@ namespace StrategyEngine
                     var details = GlobalDataSet.Data.GetOrAdd(exch.TradingSymbol, _ => new());
                     details!.HoldingInfo.AddOrUpdate(exch.Exchange, holding, (key, existingValue) => holding);
 
-                    if (_directFromServerEvents.TryGetValue(StrategyEngineEventType.Holdings, out var handler) && handler is not null)
-                        await handler(new StrategyEvent
+                    if(OnHoldings is not null)
+                        await OnHoldings(new StrategyEvent
                         {
-                            EventType = StrategyEngineEventType.Holdings,
                             Exchange = exch.Exchange,
                             Token = exch.Token,
                             TradingSymbol = exch.TradingSymbol
@@ -117,12 +119,13 @@ namespace StrategyEngine
                     details!.OpenPositions.AddOrUpdate(position.ProductType, position, (_, _) => position); //always update to latest
                 }
 
-                if (_directFromServerEvents.TryGetValue(StrategyEngineEventType.Positions, out var handler) && handler is not null)
-                    await handler(new StrategyEvent { EventType = StrategyEngineEventType.Positions,
-                                                      Exchange = position.Exchange,
-                                                      Token = position.Token,
-                                                      TradingSymbol = position.TradingSymbol
-                                                    });
+                if (OnPositions is not null)
+                    await OnPositions(new StrategyEvent
+                    {
+                        Exchange = position.Exchange,
+                        Token = position.Token,
+                        TradingSymbol = position.TradingSymbol
+                    });
             }
         }
 
@@ -133,6 +136,62 @@ namespace StrategyEngine
                 resp.TryAdd(timeInterval, Utility.AggregateCandles(oneMinutePriceData, (int)timeInterval));
 
             return resp;
+        }        
+
+        public async Task UpdateCandles(string tradingSymbol,Exchange exchange, long token, decimal price, long quantity, DateTime tradeDateTime)
+        {            
+            List<Task> tasks = [];           
+
+            var details = GlobalDataSet.Data.GetOrAdd(tradingSymbol, _ => new Details());
+            var intervalCandle = details.PriceCandleInfo.GetOrAdd(exchange, _ => new());
+            
+            foreach(var (interval,candle) in intervalCandle)
+            {
+                if (price == decimal.MinValue &&
+                    intervalCandle.TryGetValue(interval, out SortedSet<PriceCandle>? lastPrice) &&
+                    lastPrice is not null && 
+                    lastPrice.Any())
+                {
+                    price = lastPrice.First().Close;
+                }                
+
+                var priceCandle = new PriceCandle
+                {
+                    Close = price,
+                    Open = price,
+                    High = price,
+                    Low = price,
+                    Volume = quantity,
+                    StartTimeStamp = Utility.AlignToInterval(tradeDateTime, (int)interval).ToLocalTime()
+                }; 
+                intervalCandle.AddOrUpdate(interval, [priceCandle], (key, existingValue) =>
+                {
+                    lock (existingValue)
+                    {
+                        var existing = existingValue.GetViewBetween(priceCandle, priceCandle).FirstOrDefault();
+
+                        if (existing != null)
+                        {
+                            // Update existing values (update fields as per your logic)
+                            existing.UpdateCandle(priceCandle);
+                        }
+                        else
+                        {
+                            // No matching timestamp — add new one
+                            existingValue.Add(priceCandle);
+                        }
+                        return existingValue;
+                    }
+                });
+            }
+
+            if (OnCandles is not null)
+                await OnCandles(new StrategyEvent
+                {
+                    Exchange = exchange,
+                    Token = token,
+                    TradingSymbol = tradingSymbol
+                });
         }
 
         public async Task UpdateCandles(IEnumerable<SelectedSymbol> selection, IEnumerable<ChartInterval> chartIntervals, int lastXDaysCandle = 5)
@@ -142,7 +201,7 @@ namespace StrategyEngine
 
             List<Task> tasks = [];
             var initStartDate = DateTime.Now.Date.GetBusinessDaysAgo(lastXDaysCandle);
-            var endDate = DateTime.Now;
+            var endDate = DateTime.Now.ToLocalTime();
             tasks.Add(Task.Run(async () =>
             {
                 foreach (var item in selection)
@@ -169,26 +228,20 @@ namespace StrategyEngine
                             foreach (var candle in candles)
                             {
                                 // Check if candle with same timestamp exists
-                                var existingCandle = sortedSet.FirstOrDefault(c => c.TimeStamp == candle.TimeStamp);
+                                var existingCandle = sortedSet.FirstOrDefault(c => c.StartTimeStamp == candle.StartTimeStamp);
                                 if (existingCandle is null)
                                 {
                                     sortedSet.Add(candle);
                                     continue;
-                                }                                
-                                // Aggregate OHLCV
-                                //existingCandle.Open = Math.Min(existingCandle.Open, candle.Open);  ??  // or first open
-                                existingCandle.High = Math.Max(existingCandle.High, candle.High);
-                                existingCandle.Low = Math.Min(existingCandle.Low, candle.Low);
-                                existingCandle.Close = candle.Close; // latest close
-                                existingCandle.Volume += candle.Volume;                                                                                                
+                                }
+                                existingCandle.UpdateCandle(candle);
                             }
                         }
                     }
 
-                    if (_directFromServerEvents.TryGetValue(StrategyEngineEventType.Candles, out var handler) && handler is not null)
-                        await handler(new StrategyEvent
+                    if(OnCandles is not null)
+                        await OnCandles(new StrategyEvent
                         {
-                            EventType = StrategyEngineEventType.Candles,
                             Exchange = item.Exchange,
                             Token = item.Token,
                             TradingSymbol = item.TradingSymbol
@@ -212,14 +265,13 @@ namespace StrategyEngine
                 var details = GlobalDataSet.Data.GetOrAdd(scrip.TradingSymbol, _ => new());
                 details!.SecurityInfo.AddOrUpdate(scrip.Exchange, scrip, (_, _) => scrip);
 
-                if (_directFromServerEvents.TryGetValue(StrategyEngineEventType.Securities, out var handler) && handler is not null)
-                    await handler(new StrategyEvent
-                    {
-                        EventType = StrategyEngineEventType.Securities,
-                        Exchange = scrip.Exchange,
-                        Token = scrip.Token,
-                        TradingSymbol = scrip.TradingSymbol
-                    });
+                if(OnSecurities is not null)
+                        await OnSecurities(new StrategyEvent
+                        {
+                            Exchange = scrip.Exchange,
+                            Token = scrip.Token,
+                            TradingSymbol = scrip.TradingSymbol
+                        });
             }
         }
 

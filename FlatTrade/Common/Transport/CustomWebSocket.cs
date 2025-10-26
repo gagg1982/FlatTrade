@@ -187,7 +187,7 @@ namespace FlatTrade.Common.Transport
                     if (result.MessageType == WebSocketMessageType.Text)
                     {
                         string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                        _logger.LogDebug("  Recv: '{receivedMessage}'", receivedMessage);
+                        //_logger.LogDebug("  Recv: '{receivedMessage}'", receivedMessage);
                         OnMessageReceived?.Invoke(this, receivedMessage);
                     }
                     else if (result.MessageType == WebSocketMessageType.Binary)
