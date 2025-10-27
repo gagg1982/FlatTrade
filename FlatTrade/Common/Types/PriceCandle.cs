@@ -14,31 +14,47 @@
         {
             if (other is null)
                 return 1;
-            return other.StartTimeStamp.CompareTo(StartTimeStamp); //descending order
+            return StartTimeStamp.CompareTo(other.StartTimeStamp); //descending order
         }
 
-        public PriceCandle UpdateCandle(PriceCandle other)
+        public static bool IsValid(PriceCandle priceCandle)
         {
-            if (StartTimeStamp != other.StartTimeStamp)
-                return other;
+            return priceCandle.Open != decimal.MinValue &&
+                    priceCandle.Close != decimal.MinValue &&
+                    priceCandle.High != decimal.MinValue &&
+                    priceCandle.Low != decimal.MaxValue &&
+                    priceCandle.StartTimeStamp != DateTime.MinValue;
+        }
+
+        public bool UpdateCandle(PriceCandle other)
+        {
+            if (StartTimeStamp != other.StartTimeStamp || !IsValid(other))
+                return false;
 
             if (PseudoFlag)
             {
                 Open = Math.Max(Open, other.Open);
                 High = Math.Max(other.High, High);
                 Low = Math.Min(other.Low, Low);
-                Close = other.Close == decimal.MinValue ? Close : other.Close;
+                Close = other.Close;
                 Volume += other.Volume;
                 PseudoFlag = false;
-                return this;
+                return true;
             }
+
+            var previousHigh = High;
+            var previousLow =  Low;
+            var previousClose = Close;
+            var prevVolume = Volume;
 
             High = Math.Max(other.High, High);
             Low = Math.Min(other.Low, Low);
-            Close = other.Close == decimal.MinValue ? Close : other.Close;
+            Close = other.Close;
             Volume += other.Volume;
 
-            return this;
+            if(previousClose != Close || previousHigh != High || previousLow != Low || prevVolume != Volume)
+                return true;
+            return false;
         }
     }
 }

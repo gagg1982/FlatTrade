@@ -1,11 +1,11 @@
 ﻿using FlatTrade.Common.Types.Base;
 
-namespace StrategyEngine.Strategy
+namespace StrategyEngine.Model
 {
-    internal class StrategyEvent
+    internal class StrategyOnPositionSnapshot
     {
         internal required string TradingSymbol { get; set; } = string.Empty;
-        internal required Exchange Exchange {  get; set; }
         internal required long Token { get; set; }
+        internal required Exchange Exchange { get; set; }
     }
 }

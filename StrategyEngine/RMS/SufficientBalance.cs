@@ -3,7 +3,7 @@ using FlatTrade.MarketInfoManager;
 using FlatTrade.OrderManager;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using StrategyEngine.Strategy;
+using StrategyEngine.Model;
 
 namespace StrategyEngine.RMS
 {

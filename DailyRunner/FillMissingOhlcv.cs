@@ -10,6 +10,7 @@ using System.Collections.Concurrent;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
+using static FlatTrade.Common.Helpers.DataReaderHelper;
 using Utility = DailyRunner.Helpers.Utility;
 
 namespace DailyRunner
@@ -19,6 +20,8 @@ namespace DailyRunner
         public DateTime MissingTradeDate { get; set; }
         public long Token { get; set; }
         public string TradingSymbol { get; set; } = string.Empty;
+
+        [Transform(typeof(EnumTransformer<Exchange>))]
         public Exchange ExchangeCode { get; set; }
     }
 

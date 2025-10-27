@@ -26,10 +26,8 @@ namespace DailyRunner
         private List<QuoteSubscriptionRequestAck> _placeHolderToGenerateCurrentDayDailyCandles = [];
         private List<(Exchange, long, string)> _placeHolderForExchangeTokenSymbolTuple = [];
 
-        private readonly string _filePath = string.Empty;
-
         private readonly DateTime _startDate;
-        private readonly DateTime _endDate = DateTime.Now.ToLocalTime();
+        private readonly DateTime _endDate = DateTime.Now.Date.AddDays(1).ToLocalTime();
 
         private readonly int _defaultStartDateIfMissing = 30;
 
@@ -94,7 +92,7 @@ namespace DailyRunner
             }
 
             _defaultStartDateIfMissing = Convert.ToInt32(config["StocksOhlcvGenerator:DefaultStartDateIfMissing"] ?? "30");
-            _startDate = DateTime.Now.Date.AddDays(-1 * _defaultStartDateIfMissing).Date;
+            _startDate = DateTime.Now.Date.GetBusinessDaysAgo(-1 * _defaultStartDateIfMissing).Date;
             var startDateStringFromConfig = config["StocksOhlcvGenerator:StartDate"];
             if (!string.IsNullOrEmpty(startDateStringFromConfig))
                 _startDate = DateTime.Parse(startDateStringFromConfig, CultureInfo.InvariantCulture).Date;
@@ -183,12 +181,20 @@ namespace DailyRunner
 
         private async Task GenerateOhlcvFromQuotes(QuoteSubscriptionRequestAck obj)
         {
-            _placeHolderToGenerateCurrentDayDailyCandles.Add(obj);
-            if (_placeHolderToGenerateCurrentDayDailyCandles.Count % 500 == 0)
-                _logger.LogInformation("GenerateOhlcvFromQuotes: Current day OHLCV received {0}", _placeHolderToGenerateCurrentDayDailyCandles.Count());
+            if(obj is not null && obj.IsValidOhlcv())
+                _placeHolderToGenerateCurrentDayDailyCandles.Add(obj);
+
+           if (_placeHolderToGenerateCurrentDayDailyCandles.Count > 0 && _placeHolderToGenerateCurrentDayDailyCandles.Count % 500 == 0)
+                _logger.LogInformation("GenerateOhlcvFromQuotes: Current day valid OHLCV received {0}", _placeHolderToGenerateCurrentDayDailyCandles.Count());
             
             if (_placeHolderForExchangeTokenSymbolTuple is null || !_placeHolderForExchangeTokenSymbolTuple.Any())
             {
+                if (_placeHolderToGenerateCurrentDayDailyCandles.Count == 0)
+                {
+                    _logger.LogWarning("GenerateOhlcvFromQuotes: No current day valid OHLCV received.");
+                    return;
+                }
+
                 var headerAndContents = GenerateHeaderAndContents(_placeHolderToGenerateCurrentDayDailyCandles);
                 if (_csvWriter_1440 is not null)
                 {
@@ -393,7 +399,7 @@ namespace DailyRunner
                                                             val.DayHighPrice != decimal.MinValue &&
                                                             val.DayLowPrice != decimal.MaxValue &&
                                                             val.DayOpenPrice != decimal.MinValue)
-                                             .Select(val => (val.Token, new PriceCandle
+                                                          .Select(val => (val.Token, new PriceCandle
                                                              {
                                                                  StartTimeStamp = val.LastTradeDateTime.Date,
                                                                  Open = val.DayOpenPrice,

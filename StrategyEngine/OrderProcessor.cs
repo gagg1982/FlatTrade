@@ -1,7 +1,7 @@
 ﻿using FlatTrade;
 using FlatTrade.Common.Types.Base;
 using Microsoft.Extensions.Logging;
-using StrategyEngine.Strategy;
+using StrategyEngine.Model;
 
 namespace StrategyEngine
 {

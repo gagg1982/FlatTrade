@@ -32,7 +32,7 @@ namespace StrategyEngine.Strategy
         {
             if (obj is null)
             {
-                _logger.LogWarning("Strategy_{0}: received null object to process. ", Name);
+                _logger.LogWarning("{0}: received null object to process. ", Name);
                 return;
             }
             try
@@ -61,15 +61,35 @@ namespace StrategyEngine.Strategy
                         break;
                 }
             }
-            catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException ex)
+            catch (Exception ex)
             {
-                _logger.LogInformation("Strategy_{0}: Error: {1}", Name, ex);
+                _logger.LogInformation("{0}: Error: {1}", Name, ex);
             }
         }
 
         protected virtual Task<StrategySignal?> ProcessInternal(object input)
         {
-            return Task.FromResult<StrategySignal?>(default);
+            return input switch
+            {
+                StrategyOnScripSnapshot scrip => ProcessInternal(scrip),
+                StrategyOnHoldingSnapshot holding => ProcessInternal(holding),
+                StrategyOnOrderSnapshot order => ProcessInternal(order),
+                StrategyOnPositionSnapshot position => ProcessInternal(position),
+                StrategyOnTradeSnapshot trade => ProcessInternal(trade),
+                StrategyOnQuoteSnapshot quote => ProcessInternal(quote),
+                StrategyOnTouchLineSnapshot touch => ProcessInternal(touch),
+                _ => Task.FromResult<StrategySignal?>(default)
+            };
         }
+
+        // Default implementations — derived classes can override only what they need
+        protected virtual Task<StrategySignal?> ProcessInternal(StrategyOnCandleSnapshot input) => Task.FromResult<StrategySignal?>(default);
+        protected virtual Task<StrategySignal?> ProcessInternal(StrategyOnScripSnapshot input) => Task.FromResult<StrategySignal?>(default);
+        protected virtual Task<StrategySignal?> ProcessInternal(StrategyOnHoldingSnapshot input) => Task.FromResult<StrategySignal?>(default);
+        protected virtual Task<StrategySignal?> ProcessInternal(StrategyOnOrderSnapshot input) => Task.FromResult<StrategySignal?>(default);
+        protected virtual Task<StrategySignal?> ProcessInternal(StrategyOnPositionSnapshot input) => Task.FromResult<StrategySignal?>(default);
+        protected virtual Task<StrategySignal?> ProcessInternal(StrategyOnTradeSnapshot input) => Task.FromResult<StrategySignal?>(default);
+        protected virtual Task<StrategySignal?> ProcessInternal(StrategyOnQuoteSnapshot input) => Task.FromResult<StrategySignal?>(default);
+        protected virtual Task<StrategySignal?> ProcessInternal(StrategyOnTouchLineSnapshot input) => Task.FromResult<StrategySignal?>(default);
     }
 }

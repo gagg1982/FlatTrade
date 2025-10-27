@@ -2,6 +2,7 @@
 using FlatTrade.Common.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using StrategyEngine.BrokerData;
 using StrategyEngine.Model;
 using StrategyEngine.Strategy;
 
@@ -9,20 +10,12 @@ namespace StrategyEngine
 {
     internal class StrategyProcessor
     {
-        internal delegate Task OnStrategyEvents(StrategyEvent strategyEvent);
-
         private readonly ILogger<StrategyProcessor> _logger;
         private readonly ILoggerFactory _loggerFactory;
         private readonly Api _api;        
 
-        private readonly DirectFromServer _directFromServer;
+        private readonly ContextAccessor _contextAccessor;
         private readonly IStrategy _strategy;
-
-        //subscription based
-        private readonly OrderDetails _orderDetails;        
-        private readonly TouchLineDetails _touchLineDetails;
-        private readonly QuoteDetails _quoteDetails;
-        //subscription based ends here
 
         internal StrategyProcessor(IConfiguration config, Api api, IStrategy strategy, ILoggerFactory loggerFactory)
         {
@@ -37,47 +30,37 @@ namespace StrategyEngine
                 new SelectedSymbol() { Exchange = Exchange.NSE, Token = 9552, TradingSymbol ="RVNL-EQ" }];
 
             List<Task> taskList = [];
-                        
-            _directFromServer = new(_api, _strategy.Process, _logger);
+
+            _contextAccessor = new(config, _api, _strategy.Process, _loggerFactory);
             _logger.LogInformation("[1] Initializing Securities...");
-            // Making it blocking as Token is missing in OrderUpdates
-             _directFromServer.UpdateSecurityInfo(selectSymbolsFortrading).GetAwaiter().GetResult();
+
+            taskList.Add(_contextAccessor.Security.UpdateSecurityInfo(selectSymbolsFortrading));
 
             _logger.LogInformation("[2] Initializing TradeBook");
-            taskList.Add(_directFromServer.UpdateTradeDetails());
+            taskList.Add(_contextAccessor.Trade.UpdateTradeDetails());
 
             _logger.LogInformation("[3] Initializing Positions");
-            taskList.Add(_directFromServer.UpdatePositions());
+            taskList.Add(_contextAccessor.Position.UpdatePositions());
 
             _logger.LogInformation("[4] Initializing Holdings");
-            taskList.Add(_directFromServer.UpdateHoldingDetails());
+            taskList.Add(_contextAccessor.Holding.UpdateHoldingDetails());
 
-            _logger.LogInformation("[5] Initializing CandlePrices");
-            IEnumerable<ChartInterval> priceIntervals = [ChartInterval.One, ChartInterval.Three, ChartInterval.Five,
-                                                         ChartInterval.Ten, ChartInterval.Fifteen, ChartInterval.Thirty];
-            taskList.Add(_directFromServer.UpdateCandles(selectSymbolsFortrading, priceIntervals));
+            _logger.LogInformation("[5] Initializing CandlePrices");           
+            taskList.Add(_contextAccessor.Candle.UpdateCandlesAsync(selectSymbolsFortrading));
 
-            _logger.LogInformation("[6] Initializing OrderBook");
-            _orderDetails = new(_api, _directFromServer, _strategy.Process, _loggerFactory);
-            taskList.Add(_orderDetails.UpdateOrderBook());
-            taskList.Add(_orderDetails.SubscribeOrderUpdates());
+            _logger.LogInformation("[6] Initializing OrderBook");            
+            taskList.Add(_contextAccessor.Order.UpdateOrderBook());
+            taskList.Add(_contextAccessor.Order.SubscribeOrderUpdates());
 
             _logger.LogInformation("[7] Initializing TouchLines");
-            _touchLineDetails = new(_api, _strategy.Process, _loggerFactory);
-            taskList.Add(_touchLineDetails.SubscribeTouchLineAsync(selectSymbolsFortrading));
+            taskList.Add(_contextAccessor.TouchLine.SubscribeTouchLineAsync(selectSymbolsFortrading));
 
             _logger.LogInformation("[8] Initializing Quotes With Market Depth");
-            _quoteDetails = new(_api, _directFromServer, _strategy.Process, _loggerFactory);
-            taskList.Add(_quoteDetails.SubscribeQuoteAsync(selectSymbolsFortrading));
+            taskList.Add(_contextAccessor.Quote.SubscribeQuoteAsync(selectSymbolsFortrading));
 
             //ReadConfigFile(configFile);
             //ReadRMSRules(configFile);
-            //FetchSymbolDetails().GetAwaiter().GetResult();
-
-            //FetchTradeDetails().GetAwaiter().GetResult();
-            //FetchPositionDetails().GetAwaiter().GetResult();
-            //FetchCandleData().GetAwaiter().GetResult();
-
+            
             Task.WhenAll(taskList).GetAwaiter().GetResult();
             ////===============================================================================================
         }
@@ -87,75 +70,7 @@ namespace StrategyEngine
 
         //}
 
-        //public async Task FetchCandleData()
-        //{
-        //    foreach (var (symbol, symbolDetails) in symbolInfo)
-        //    {
-        //        var ok = await _api.Subscription.OrderSubscription.Subscribe(_userDetails.AccountId, );
-
-        //        if (ok)
-        //        {
-        //            symbolDetails.Orders = scrip.First();
-        //            Console.WriteLine($"Fetched details for symbol: {symbol}");
-        //        }
-        //        else
-        //        {
-        //            Console.WriteLine($"Failed to fetch details for symbol: {symbol}");
-        //        }
-        //    }
-        //}
-        //public async Task FetchPositionDetails()
-        //{
-        //    foreach (var (symbol, symbolDetails) in symbolInfo)
-        //    {
-        //        var ok = await _api.Subscription.OrderSubscription.Subscribe(_userDetails.AccountId, symbol);
-
-        //        if (ok)
-        //        {
-        //            symbolDetails.Orders = scrip.First();
-        //            Console.WriteLine($"Fetched details for symbol: {symbol}");
-        //        }
-        //        else
-        //        {
-        //            Console.WriteLine($"Failed to fetch details for symbol: {symbol}");
-        //        }
-        //    }
-        //}
-        //public async Task FetchTradeDetails()
-        //{
-        //    foreach (var (symbol, symbolDetails) in symbolInfo)
-        //    {
-        //        var ok = await _api.Subscription.OrderSubscription.Subscribe(_userDetails.AccountId, symbol);
-
-        //        if (ok)
-        //        {
-        //            symbolDetails.Orders = scrip.First();
-        //            Console.WriteLine($"Fetched details for symbol: {symbol}");
-        //        }
-        //        else
-        //        {
-        //            Console.WriteLine($"Failed to fetch details for symbol: {symbol}");
-        //        }
-        //    }
-        //}
-
-        //public async Task FetchSymbolDetails()
-        //{
-        //    foreach (var (symbol, symbolDetails) in symbolInfo)
-        //    {
-        //        var scrip = await _api.Scrips.GetScripAsync(_exchange.ToString(), symbol);
-
-        //        if (scrip != null && scrip.Count == 1)
-        //        {
-        //            symbolDetails.SymbolData = scrip.First();
-        //            Console.WriteLine($"Fetched details for symbol: {symbol}");
-        //        }
-        //        else
-        //        {
-        //            Console.WriteLine($"Failed to fetch details for symbol: {symbol}");
-        //        }
-        //    }
-        //}
+        
         //public void ReadConfigFile(string configFile)
         //{
         //    var configRoot = new ConfigurationBuilder().AddJsonFile(configFile, false, true).Build();

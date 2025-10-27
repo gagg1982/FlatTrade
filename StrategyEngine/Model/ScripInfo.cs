@@ -34,7 +34,28 @@ namespace StrategyEngine.Model
         public decimal IssueCapital { get; set; }
 
         public bool IsIntraDayAllowed { get; set; }
-                
+
+        public ScripInfo() { }
+
+        protected ScripInfo(ScripInfo other)
+        {
+            Exchange = other.Exchange;
+            TradingSymbol = other.TradingSymbol;
+            CompanyName = other.CompanyName;
+            SymbolName = other.SymbolName;
+            Segment = other.Segment;
+            Isin = other.Isin;
+            PricePrecision = other.PricePrecision;
+            LotSize = other.LotSize;
+            TickSize = other.TickSize;
+            LastUpdateTime = other.LastUpdateTime;
+            UpperCircuitLimit = other.UpperCircuitLimit;    
+            LowerCircuitLimit = other.LowerCircuitLimit;
+            Token = other.Token;
+            IssueCapital = other.IssueCapital;
+            IsIntraDayAllowed = other.IsIntraDayAllowed;
+        }
+
         public static IEnumerable<ScripInfo> ConvertFrom(IEnumerable<QuotesResponse> quotesResponse, 
             IEnumerable<LinkedScrip> linkedScrips) =>        
                 from a in quotesResponse

@@ -1,4 +1,4 @@
-﻿using StrategyEngine.Strategy;
+﻿using StrategyEngine.Model;
 using System.Collections.Concurrent;
 
 namespace StrategyEngine.RMS

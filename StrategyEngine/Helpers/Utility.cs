@@ -22,7 +22,7 @@ namespace StrategyEngine.Helpers
 
             return aligned;
         }
-        public static IEnumerable<PriceCandle> AggregateCandles(IEnumerable<TimePriceDataResponse> oneMinuteCandles, int targetIntervalMinutes)
+        public static SortedSet<PriceCandle> AggregateCandles(IEnumerable<TimePriceDataResponse> oneMinuteCandles, int targetIntervalMinutes)
         {
             // Validation for target interval
             if (targetIntervalMinutes <= 0 || targetIntervalMinutes > 1440)
@@ -41,19 +41,20 @@ namespace StrategyEngine.Helpers
 
             // Group candles into buckets based on the target interval.
             // The key for grouping is the start time of each aggregation interval.
-            return sortedCandles
+            var grouped = sortedCandles
                 .GroupBy(candle => AlignToInterval(candle.StartDateTime, targetIntervalMinutes))
-                .OrderBy(group => group.Key) // Order the groups by their start time
-                .Select(group => new PriceCandle // Project each group into a new ListOfPriceCandleData object
+                .OrderBy(group => group.Key)
+                .Select(group => new PriceCandle
                 {
-                    StartTimeStamp = group.Key, // The start time of the interval
-                    Open = group.First().OpenPrice, // Open price of the first candle in the group
-                    High = group.Max(c => c.HighPrice), // Highest HighPrice in the group
-                    Low = group.Min(c => c.LowPrice),   // Lowest LowPrice in the group
-                    Close = group.Last().ClosePrice,  // Close price of the last candle in the group
-                    Volume = group.Sum(c => (long)c.Volume)      // Sum of volumes in the group
-                })
-                .ToList(); // Materialize the results into a List<ListOfPriceCandleData>
+                    StartTimeStamp = group.Key, 
+                    Open = group.First().OpenPrice, 
+                    High = group.Max(c => c.HighPrice), 
+                    Low = group.Min(c => c.LowPrice), 
+                    Close = group.Last().ClosePrice,  
+                    Volume = group.Sum(c => (long)c.Volume)
+                });
+
+            return new(grouped);
         }
     }
 }

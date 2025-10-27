@@ -30,7 +30,7 @@ namespace StrategyEngine.Model
         public decimal BookLossPrice { get; set; }
         public decimal TrailingPrice { get; set; }
         public long TotalFilled { get; set; }
-
+       
         public static IEnumerable<OrderInfo> ConvertFrom(IEnumerable<OrderBookResponse> orderBookResponse)
         {
             List<OrderInfo> orderInfo = [];

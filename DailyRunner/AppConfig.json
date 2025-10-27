@@ -7,21 +7,21 @@
         "Throttling": {
             "RateLimiter": {
                 "GlobalCallsPerSec": 20,
-                "GlobalCallsPerMin": 660,
+                "GlobalCallsPerMin": 500,
                 "SleepForXMilliSecondsIfBreached": 50,
 
                 "PerApiCalls": {
                     "GetSecurityInfoAsync": {
                         "CallsPerSec": 20,
-                        "CallsPerMin": 120
+                        "CallsPerMin": 100
                     },
                     "GetQuotesAsync": {
                         "CallsPerSec": 20,
-                        "CallsPerMin": 660
+                        "CallsPerMin": 420
                     },
                     "GetLinkedScripsAsync": {
                         "CallsPerSec": 20,
-                        "CallsPerMin": 660
+                        "CallsPerMin": 420
                     }
                 }
             },
@@ -52,7 +52,7 @@
         "WriteToFile": {
             "Enabled": true,
             "ChannelCapacity": 5,
-            "CsvFilePath": "../../../CsvData/"
+            "CsvFilePath": "../../../CsvData/Exchange/"
         },
         "WriteToDb": {
             "Enabled": true,
@@ -74,16 +74,16 @@
         "WriteToFile": {
             "ChannelCapacity": 5000,
             "Enabled": true,
-            "CsvFilePath": "../../../CsvData/"
+            "CsvFilePath": "../../../CsvData/StockInstruments/"
         }
     },
 
     "StocksOhlcvGenerator": {
         "ListOfTradingSymbols": [],
 
-        "DefaultStartDateIfMissing": 9,
+        "DefaultStartDateIfMissing": 5,
         "StartDate": "",
-        "DateBatchSizeForOneMinutePrices": 10,
+        "DateBatchSizeForOneMinutePrices":10,
         "DateBatchSizeForDailyPrices": 10,
         "DailyPricesEnabled": true,
         "OneMinutePricesEnabled": true,
@@ -108,7 +108,7 @@
         "DailyPricesEnabled": true,
         "OneMinutePricesEnabled": true,
 
-        "Enabled": true,
+        "Enabled": false,
 
         "WriteToFile": {
             "Enabled": true,

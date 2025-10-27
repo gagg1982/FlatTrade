@@ -2,40 +2,49 @@
 using FlatTrade.Common.Types.Base;
 using FlatTrade.SubscriptionManager;
 using FlatTrade.SubscriptionManager.TouchLine;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
 using StrategyEngine.Strategy;
-using static StrategyEngine.StrategyProcessor;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace StrategyEngine
+namespace StrategyEngine.BrokerData
 {
-    internal class TouchLineDetails : IDisposable
+    internal class TouchLine : IDisposable
     {
         private bool _disposed = false;
         private readonly Api _api;
-        private readonly ILogger<TouchLineDetails> _logger;
+        private readonly ILogger<TouchLine> _logger;
+        private readonly IConfiguration _config;
+        private readonly ContextAccessor _contextAccessor;
 
-        private readonly OnUpdate? OnTouchLine;
+        private readonly OnUpdate? _onTouchLine;
 
         private readonly Helpers.Queue<TouchLineSubscriptionUpdates> _queue;
 
         private List<SelectedSymbol> _subscribedSymbols = [];
-        public TouchLineDetails(Api api, OnUpdate? onUpdate, ILoggerFactory loggerFactory)
+        public TouchLine(IConfiguration config, ContextAccessor contextAccessor, Api api, OnUpdate? onUpdate, ILoggerFactory loggerFactory)
         {
             _api = api;
-            _logger = loggerFactory.CreateLogger<TouchLineDetails>();
-            OnTouchLine = onUpdate;
+            _config = config;
+            _logger = loggerFactory.CreateLogger<TouchLine>();
+            _contextAccessor = contextAccessor;
+            _onTouchLine = onUpdate;
             _queue = new(50000, "TouchLineUpdateQueue", OnTouchLineUpdates, loggerFactory);
         }
 
         public async Task<bool> SubscribeTouchLineAsync(IEnumerable<SelectedSymbol> selectedSymbols)
-        {            
-            if(selectedSymbols is null || !selectedSymbols.Any())
+        {
+            if (selectedSymbols is null || !selectedSymbols.Any())
             {
                 _logger.LogWarning("No symbols provided for touchline subscription.");
                 return false;
             }
-            _subscribedSymbols = [.._subscribedSymbols.Union(selectedSymbols)];
+            _subscribedSymbols = [.. _subscribedSymbols.Union(selectedSymbols)];
             var selectionProjection = selectedSymbols.Select(a => new KeyValuePair<Exchange, long>(a.Exchange, a.Token));
 
             if (_api.Subscription.TouchLineSubscription.OnSubscriptionEvents is null)
@@ -48,13 +57,13 @@ namespace StrategyEngine
                 return ok;
             }
 
-            
+
             _logger.LogInformation("Subscribed to touchline updates successfully.");
             return ok;
         }
 
         public async Task<bool> UnSubscribeTouchLineAsync(IEnumerable<SelectedSymbol> selectedSymbols)
-        {            
+        {
             if (selectedSymbols is null || !selectedSymbols.Any())
             {
                 _logger.LogWarning("No symbols provided for touchline un-subscription.");
@@ -74,16 +83,16 @@ namespace StrategyEngine
 
             _logger.LogInformation("Un-Subscribed to touchline updates successfully.");
             return ok;
-        }          
+        }
 
         private static void UpdateTouchLines(TouchLineSubscriptionRequestAck touchLineAck)
         {
             var details = GlobalDataSet.Subscriptions.GetOrAdd(touchLineAck.Token, new SubscriptionDetails());
-            details.TouchLineSubscription.AddOrUpdate(touchLineAck.Exchange, touchLineAck, (_,_) => touchLineAck);
+            details.TouchLineSubscription.AddOrUpdate(touchLineAck.Exchange, touchLineAck, (_, existingValue) => { return existingValue.Update(touchLineAck); });
         }
 
         private static TouchLineSubscriptionRequestAck UpdateTouchLines(TouchLineSubscriptionUpdates touchLineUpdate)
-        {            
+        {
             var newTouchLineUpdate = new TouchLineSubscriptionRequestAck
             {
                 Token = touchLineUpdate.Token,
@@ -100,8 +109,8 @@ namespace StrategyEngine
             if (Object is not null)
             {
                 var update = UpdateTouchLines(Object);
-                if (OnTouchLine is not null)
-                    await OnTouchLine(new StrategyEvent
+                if (_onTouchLine is not null)
+                    await _onTouchLine(new StrategyOnTouchLineSnapshot
                     {
                         Exchange = update.Exchange,
                         Token = update.Token,
@@ -121,7 +130,7 @@ namespace StrategyEngine
                     SubscribeTouchLineAsync(_subscribedSymbols).GetAwaiter().GetResult();
                     break;
                 case SubscriptionType.SubscribeTouchLineAck:
-                    _logger.LogInformation("[OnTouchLineUpdates-SubscribeTouchLineAck] {msg}", msg);                    
+                    _logger.LogInformation("[OnTouchLineUpdates-SubscribeTouchLineAck] {msg}", msg);
                     UpdateTouchLines((TouchLineSubscriptionRequestAck)subscriptionObject!);
                     break;
                 case SubscriptionType.UnsubscribeTouchLineAck:
@@ -161,7 +170,7 @@ namespace StrategyEngine
         }
 
         // Finalizer (only if you have unmanaged resources)
-        ~TouchLineDetails()
+        ~TouchLine()
         {
             Dispose(false);
         }

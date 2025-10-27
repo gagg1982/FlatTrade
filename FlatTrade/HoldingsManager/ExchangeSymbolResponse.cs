@@ -37,5 +37,10 @@ namespace FlatTrade.HoldingsManager
 
         [JsonProperty("cur_e")]
         public string CurrencyEquity { get; set; } = string.Empty;
+
+        public ExchangeSymbolResponse ShallowCopy()
+        {
+            return (ExchangeSymbolResponse)this.MemberwiseClone();
+        }
     }
 }

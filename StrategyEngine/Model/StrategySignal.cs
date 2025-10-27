@@ -1,8 +1,7 @@
 ﻿using FlatTrade.Common.Types.Base;
 using FlatTrade.TradeManager;
-using StrategyEngine.Model;
 
-namespace StrategyEngine.Strategy
+namespace StrategyEngine.Model
 {
     public class DecisionMakingInputs
     {

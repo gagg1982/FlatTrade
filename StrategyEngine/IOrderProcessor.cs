@@ -1,18 +1,11 @@
-﻿using FlatTrade;
-using FlatTrade.Common.Types.Base;
-using StrategyEngine.Strategy;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using StrategyEngine.Model;
 
 namespace StrategyEngine
 {
-    internal interface IOrderProcessor
+    public interface IOrderProcessor
     {
-        internal Task CancelOrder(CancelOrder cancelOrder);
-        internal Task ModifyOrder(ModifyOrder modifyOrder);
-        internal Task CreateOrder(CreateOrder createOrder);        
+        public Task CancelOrder(CancelOrder cancelOrder);
+        public Task ModifyOrder(ModifyOrder modifyOrder);
+        public Task CreateOrder(CreateOrder createOrder);        
     }
 }

@@ -3,28 +3,31 @@ using FlatTrade.Common.Types.Base;
 using FlatTrade.OrderManager;
 using FlatTrade.SubscriptionManager;
 using FlatTrade.SubscriptionManager.Order;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
 using StrategyEngine.Strategy;
-using static StrategyEngine.StrategyProcessor;
 
-namespace StrategyEngine
+namespace StrategyEngine.BrokerData
 {
-    internal class OrderDetails :IDisposable
+    internal class Order : IDisposable
     {
         private bool _disposed = false;
 
+        private readonly IConfiguration _config;
         private readonly Api _api;
-        private readonly ILogger<OrderDetails> _logger ;
-        private readonly DirectFromServer _directFromServer;
+        private readonly ILogger<Order> _logger;
+        private readonly ContextAccessor _contextAccessor;
+
         private readonly Helpers.Queue<OrderSubscriptionUpdates> _queue;
 
         private readonly OnUpdate? OnOrders;
-        public OrderDetails(Api api, DirectFromServer directFromServer, OnUpdate? onOrders, ILoggerFactory loggerFactory)
+        public Order(IConfiguration config, ContextAccessor contextAccessor, Api api, OnUpdate? onOrders, ILoggerFactory loggerFactory)
         {
             _api = api;
-            _logger = loggerFactory.CreateLogger<OrderDetails>();
-            _directFromServer = directFromServer;
+            _config = config;
+            _logger = loggerFactory.CreateLogger<Order>();
+            _contextAccessor = contextAccessor;
             OnOrders = onOrders;
             _queue = new(5000, "OrderUpdateQueue", OnOrderUpdates, loggerFactory);
         }
@@ -82,52 +85,51 @@ namespace StrategyEngine
         private async Task UpdateOrderBook(IEnumerable<OrderInfo> orders)
         {
             bool isCompleted = false;
-            bool isHoldingsUpdated = false;
+            List<OrderInfo> result = [];
+            result.Capacity = orders.Count();
+
             foreach (var order in orders)
             {
                 var details = GlobalDataSet.Data.GetOrAdd(order.TradingSymbol, _ => new());
                 isCompleted = order.OrderStatus == OrderStatus.Completed;
-                isHoldingsUpdated = isCompleted && (order.ProductType == ProductType.Delivery);
                 if (isCompleted ||
                         order.OrderStatus == OrderStatus.Rejected ||
+                        order.OrderStatus == OrderStatus.AmoCancelled ||
                         order.OrderStatus == OrderStatus.Cancelled)
                 {
+                    result.Add(order);
                     details!.OpenOrders.Remove(order.NorenOrderNumber, out OrderInfo? _);
-                    details!.ClosedOrders.AddOrUpdate(order.NorenOrderNumber, order, (key, existingValue) => order);                    
+                    details!.ClosedOrders.AddOrUpdate(order.NorenOrderNumber, order, (key, existingValue) => order);
                 }
                 else
                 {
-                    details!.OpenOrders.AddOrUpdate(order.NorenOrderNumber, order, (key, existingValue) => order);
+                    var ord = details!.OpenOrders.AddOrUpdate(order.NorenOrderNumber, order, (key, existingValue) => order);
                 }
 
+                //sending notification only for OrderStatus =Completed,  Rejected, AmoCancelled, Cancelled
+                //Open, AmoOpen
+                if (order.OrderStatus == OrderStatus.Open || order.OrderStatus == OrderStatus.AmoOpen)
+                    result.Add(order);
+
                 if (OnOrders is not null)
-                {
-                    ScripInfo? scrip;
-                    if (details.SecurityInfo.TryGetValue(order.Exchange, out scrip) && scrip is not null)
-                    {
-                        await OnOrders(new StrategyEvent
+                    foreach (var ord in result)
+                        await OnOrders(new StrategyOnOrderSnapshot
                         {
                             Exchange = order.Exchange,
-                            Token = scrip!.Token,
-                            TradingSymbol = order.TradingSymbol
+                            OrderStatus = order.OrderStatus,
+                            NorenOrderNumber = order.NorenOrderNumber,
+                            TradingSymbol = order.TradingSymbol,
                         });
-                    }
-                    else
-                    {
-                        _logger.LogError("UpdateOrderBook: Unable to get token value from SecurityInfo (GlobalDataSet) for {TradingSymbol}/{exchange}. Not sending the update for order number '{NorenOrderNumber}'", order.TradingSymbol, order.Exchange, order.NorenOrderNumber);
-                    }                    
-                }
+
                 if (isCompleted)
                 {
                     List<Task> tasks = [];
-                    tasks.Add(_directFromServer.UpdatePositions());
-                    tasks.Add(_directFromServer.UpdateTradeDetails());
-                    if (isHoldingsUpdated)
-                        tasks.Add(_directFromServer.UpdateHoldingDetails());
+                    tasks.Add(_contextAccessor.Position.UpdatePositions(order.Exchange, order.TradingSymbol));
+                    tasks.Add(_contextAccessor.Trade.UpdateTradeDetails(order.Exchange, order.TradingSymbol, order.NorenOrderNumber));
 
                     await Task.WhenAll(tasks);
                 }
-            }            
+            }
         }
 
         private async Task OnOrderUpdates(OrderSubscriptionUpdates Object)
@@ -135,7 +137,7 @@ namespace StrategyEngine
             if (Object is not null)
             {
                 var orderInfo = OrderInfo.ConvertFrom(Object);
-                if(orderInfo is not null)
+                if (orderInfo is not null)
                     await UpdateOrderBook([orderInfo]);
             }
         }
@@ -153,14 +155,14 @@ namespace StrategyEngine
                     await SubscribeOrderUpdates();
                     break;
                 case SubscriptionType.SubscribeOrderAck:
-                    _logger.LogDebug("[OnOrderUpdates-SubscribeOrderAck] {msg}", msg);
+                    _logger.LogInformation("[OnOrderUpdates-SubscribeOrderAck] {msg}", msg);
                     break;
                 case SubscriptionType.UnsubscribeOrderAck:
-                    _logger.LogDebug("[OnOrderUpdates-UnsubscribeOrderAck] {msg}", msg);
+                    _logger.LogInformation("[OnOrderUpdates-UnsubscribeOrderAck] {msg}", msg);
                     break;
                 case SubscriptionType.SubscribeOrderUpdate:
                     _logger.LogDebug("[OnOrderUpdates-SubscribeOrderUpdate] {msg}", msg);
-                    if (subscriptionObject is OrderSubscriptionUpdates Object)                    
+                    if (subscriptionObject is OrderSubscriptionUpdates Object)
                         await _queue.WriteAsync(Object);
                     break;
                 default:
@@ -190,7 +192,7 @@ namespace StrategyEngine
         }
 
         // Finalizer (only if you have unmanaged resources)
-        ~OrderDetails()
+        ~Order()
         {
             Dispose(false);
         }

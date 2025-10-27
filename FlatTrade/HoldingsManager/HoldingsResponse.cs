@@ -62,5 +62,29 @@ namespace FlatTrade.HoldingsManager
 
         [JsonProperty("epi_done_qty")]
         public long ExchangePendingInstructionDoneQuantity { get; set; }
+
+        public HoldingsResponse() { }
+        protected HoldingsResponse(HoldingsResponse other)
+        {
+            other.ExchangeSymbolResponse.ForEach(exch => ExchangeSymbolResponse.Add(exch.ShallowCopy()));
+            HoldingQuantity = other.HoldingQuantity;
+            NonPoaDisplayQuantity = other.NonPoaDisplayQuantity;
+            NonPoaDisplayT1Quantity = other.NonPoaDisplayT1Quantity;
+            BeneficiaryQuantity = other.BeneficiaryQuantity;
+            BrokerEquityPledgedAsCollateralQuantity = other.BrokerEquityPledgedAsCollateralQuantity;
+            BrokerForexPledgedAsCollateralQuantity = other.BrokerForexPledgedAsCollateralQuantity;
+            BrokerAllMarketPledgedAsCollateralQuantity = other.BrokerAllMarketPledgedAsCollateralQuantity;
+            BrokerDerivativeMarketPledgedAsCollateralQuantity = other.BrokerDerivativeMarketPledgedAsCollateralQuantity;
+            BuyTodaySellTommorrowQuantity = other.BuyTodaySellTommorrowQuantity;
+            HoldingQuantityUsedToday = other.HoldingQuantityUsedToday;
+            DpHoldingQuantity = other.DpHoldingQuantity;
+            AvgPriceUploadedAlongWithHoldings = other.AvgPriceUploadedAlongWithHoldings;
+            HairCutPercOnPledgedSecurities = other.HairCutPercOnPledgedSecurities;
+            TodaySellAmount = other.TodaySellAmount;
+            ProductDisplayName = other.ProductDisplayName;
+            TradeQuantity = other.TradeQuantity;
+            ProductType = other.ProductType;
+            ExchangePendingInstructionDoneQuantity = other.ExchangePendingInstructionDoneQuantity;
+        }
     }
 }

@@ -1,5 +1,5 @@
 ﻿
-using StrategyEngine.Strategy;
+using StrategyEngine.Model;
 
 namespace StrategyEngine.RMS
 {

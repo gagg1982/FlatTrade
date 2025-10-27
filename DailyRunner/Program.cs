@@ -2,6 +2,7 @@
 using FlatTrade;
 using FlatTrade.Common.Helpers;
 using FlatTrade.Common.Throttle;
+using FlatTrade.Common.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -102,7 +103,7 @@ await exchangeGenerator.GenerateAndLoad();
 
 var stocksGenerator = new StocksGenerator(api, config, loggerFactory);
 var listOfExchangeTokenSymbolTuple = await stocksGenerator.GenerateAndLoad();
-
+//IEnumerable<(Exchange, long, string)> listOfExchangeTokenSymbolTuple = [(Exchange.NSE, 9552, "RVNL-EQ")];
 //=====================================================================
 
 var stocksOhlcvGenerator = new StocksOhlcvGenerator(api, config, listOfExchangeTokenSymbolTuple, loggerFactory);
