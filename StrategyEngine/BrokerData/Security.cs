@@ -4,7 +4,7 @@ using FlatTrade.ScripManager;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
-using StrategyEngine.Strategy;
+using StrategyEngine.Strategies;
 using System.Collections.Concurrent;
 
 namespace StrategyEngine.BrokerData

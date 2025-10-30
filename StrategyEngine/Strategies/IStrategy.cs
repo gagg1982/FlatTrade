@@ -1,4 +1,4 @@
-﻿namespace StrategyEngine.Strategy
+﻿namespace StrategyEngine.Strategies
 {
     internal delegate Task OnUpdate(object obj);
 

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.BrokerData;
 using StrategyEngine.Model;
-using StrategyEngine.Strategy;
+using StrategyEngine.Strategies;
 
 namespace StrategyEngine
 {
@@ -46,16 +46,20 @@ namespace StrategyEngine
             taskList.Add(_contextAccessor.Holding.UpdateHoldingDetails());
 
             _logger.LogInformation("[5] Initializing CandlePrices");           
-            taskList.Add(_contextAccessor.Candle.UpdateCandlesAsync(selectSymbolsFortrading));
+            taskList.Add(_contextAccessor.Candle.GetHistoricCandlesFromServerAsync(selectSymbolsFortrading));
 
             _logger.LogInformation("[6] Initializing OrderBook");            
             taskList.Add(_contextAccessor.Order.UpdateOrderBook());
+
+            _logger.LogInformation("[7] Initializing Subscriptions");
+            
+            _logger.LogInformation(     "[7-A] Initializing Order Updates");
             taskList.Add(_contextAccessor.Order.SubscribeOrderUpdates());
-
-            _logger.LogInformation("[7] Initializing TouchLines");
+            
+            _logger.LogInformation(     "[7-A] Initializing TouchLine Updates");
             taskList.Add(_contextAccessor.TouchLine.SubscribeTouchLineAsync(selectSymbolsFortrading));
-
-            _logger.LogInformation("[8] Initializing Quotes With Market Depth");
+            
+            _logger.LogInformation("    [7-A] Initializing Quote Updates");
             taskList.Add(_contextAccessor.Quote.SubscribeQuoteAsync(selectSymbolsFortrading));
 
             //ReadConfigFile(configFile);

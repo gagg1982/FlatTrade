@@ -1,6 +1,5 @@
 ﻿using FlatTrade.AuthenticationManager;
 using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Throttle;
 using FlatTrade.Common.Transport;
 using FlatTrade.Common.Types.Base;
 using Microsoft.Extensions.Logging;

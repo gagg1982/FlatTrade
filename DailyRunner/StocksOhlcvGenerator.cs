@@ -92,7 +92,7 @@ namespace DailyRunner
             }
 
             _defaultStartDateIfMissing = Convert.ToInt32(config["StocksOhlcvGenerator:DefaultStartDateIfMissing"] ?? "30");
-            _startDate = DateTime.Now.Date.GetBusinessDaysAgo(-1 * _defaultStartDateIfMissing).Date;
+            _startDate = DateTime.Now.Date.GetBusinessDaysAgo(_defaultStartDateIfMissing).Date;
             var startDateStringFromConfig = config["StocksOhlcvGenerator:StartDate"];
             if (!string.IsNullOrEmpty(startDateStringFromConfig))
                 _startDate = DateTime.Parse(startDateStringFromConfig, CultureInfo.InvariantCulture).Date;

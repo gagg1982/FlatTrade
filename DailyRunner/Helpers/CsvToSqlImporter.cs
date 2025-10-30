@@ -19,91 +19,91 @@ namespace DailyRunner.Helpers
         /// </summary>
         /// <param name="csvFilePath">The path to the CSV file.</param>
         /// <returns>A Task representing the asynchronous operation.</returns>
-        private async Task ImportCsvToSqlServerAsync<CsvRow>(string csvFilePath, ClassMap<CsvRow> csvRowMap, int batchSize, string storedProcedureName, string tvpTypeName)
-        {
-            if (!File.Exists(csvFilePath))
-            {
-                _logger.LogError("Error: CSV file not found at '{CsvFilePath}'", csvFilePath);
-                return;
-            }
+        //private async Task ImportCsvToSqlServerAsync<CsvRow>(string csvFilePath, ClassMap<CsvRow> csvRowMap, int batchSize, string storedProcedureName, string tvpTypeName)
+        //{
+        //    if (!File.Exists(csvFilePath))
+        //    {
+        //        _logger.LogError("Error: CSV file not found at '{CsvFilePath}'", csvFilePath);
+        //        return;
+        //    }
 
-            try
-            {
-                using var reader = new StreamReader(csvFilePath);
-                using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture) { HasHeaderRecord = true });
+        //    try
+        //    {
+        //        using var reader = new StreamReader(csvFilePath);
+        //        using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture) { HasHeaderRecord = true });
 
-                _logger.LogInformation("[Reader] Starting CSV import from : {csvFilePath}, Batch Size: {_batchSize}", csvFilePath, batchSize);
-                // Register the class map if you're using it
-                csv.Context.RegisterClassMap(csvRowMap);
+        //        _logger.LogInformation("[Reader] Starting CSV import from : {csvFilePath}, Batch Size: {_batchSize}", csvFilePath, batchSize);
+        //        // Register the class map if you're using it
+        //        csv.Context.RegisterClassMap(csvRowMap);
 
-                // Read the header row
-                await csv.ReadAsync();
-                csv.ReadHeader();
+        //        // Read the header row
+        //        await csv.ReadAsync();
+        //        csv.ReadHeader();
 
-                var batch = new List<CsvRow>();
-                long totalRecordsProcessed = 0;
-                int batchCount = 0;
+        //        var batch = new List<CsvRow>();
+        //        long totalRecordsProcessed = 0;
+        //        int batchCount = 0;
 
-                while (await csv.ReadAsync())
-                {
-                    try
-                    {
-                        var record = csv.GetRecord<CsvRow>();
-                        if (record is not null)
-                        {
-                            batch.Add(record);
-                        }
-                    }
-                    catch (CsvHelperException ex)
-                    {
-                        _logger.LogError(ex, "  Warning: Error reading CSV record at row {batch.Count}", batch.Count);
-                        // Optionally, log the problematic row data or skip it
-                        continue; // Skip to the next record
-                    }
+        //        while (await csv.ReadAsync())
+        //        {
+        //            try
+        //            {
+        //                var record = csv.GetRecord<CsvRow>();
+        //                if (record is not null)
+        //                {
+        //                    batch.Add(record);
+        //                }
+        //            }
+        //            catch (CsvHelperException ex)
+        //            {
+        //                _logger.LogError(ex, "  Warning: Error reading CSV record at row {batch.Count}", batch.Count);
+        //                // Optionally, log the problematic row data or skip it
+        //                continue; // Skip to the next record
+        //            }
 
-                    if (batch.Count >= batchSize)
-                    {
-                        batchCount++;
-                        _logger.LogInformation("  Processing batch {batchCount} ({batch.Count} records)...", batchCount, batch.Count);
-                        await InsertBatchToSqlServerAsync(batch, storedProcedureName, tvpTypeName);
-                        totalRecordsProcessed += batch.Count;
-                        batch.Clear(); // Clear the batch for the next set of records
-                    }
-                }
+        //            if (batch.Count >= batchSize)
+        //            {
+        //                batchCount++;
+        //                _logger.LogInformation("  Processing batch {batchCount} ({batch.Count} records)...", batchCount, batch.Count);
+        //                await InsertBatchToSqlServerAsync(batch, storedProcedureName, tvpTypeName);
+        //                totalRecordsProcessed += batch.Count;
+        //                batch.Clear(); // Clear the batch for the next set of records
+        //            }
+        //        }
 
-                // Process any remaining records in the last batch
-                if (batch.Count > 0)
-                {
-                    batchCount++;
-                    _logger.LogInformation("  Processing batch {batchCount} ({batch.Count} records)...", batchCount, batch.Count);
-                    await InsertBatchToSqlServerAsync(batch, storedProcedureName, tvpTypeName);
-                    totalRecordsProcessed += batch.Count;
-                }
+        //        // Process any remaining records in the last batch
+        //        if (batch.Count > 0)
+        //        {
+        //            batchCount++;
+        //            _logger.LogInformation("  Processing batch {batchCount} ({batch.Count} records)...", batchCount, batch.Count);
+        //            await InsertBatchToSqlServerAsync(batch, storedProcedureName, tvpTypeName);
+        //            totalRecordsProcessed += batch.Count;
+        //        }
 
-                _logger.LogInformation("CSV import and upload into SQL server completed successfully. Total records processed: {totalRecordsProcessed} in {batchCount} batches for file {csvFilePath}", totalRecordsProcessed, batchCount, csvFilePath);
+        //        _logger.LogInformation("CSV import and upload into SQL server completed successfully. Total records processed: {totalRecordsProcessed} in {batchCount} batches for file {csvFilePath}", totalRecordsProcessed, batchCount, csvFilePath);
 
-            }
-            catch (FileNotFoundException ex)
-            {
-                _logger.LogCritical(ex, "  Error: The file '{csvFilePath}' was not found.", csvFilePath);
-            }
-            catch (DirectoryNotFoundException ex)
-            {
-                _logger.LogCritical(ex, "  Error: The directory for '{csvFilePath}' was not found.", csvFilePath);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogCritical(ex, "  Error: Access to the file '{csvFilePath}' is denied. Check file permissions.", csvFilePath);
-            }
-            catch (IOException ex)
-            {
-                _logger.LogError(ex, "  Error reading CSV file: {ex.Message}", ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogCritical(ex, "  An unexpected error occurred during CSV import: {ex.Message}", ex.Message);
-            }
-        }
+        //    }
+        //    catch (FileNotFoundException ex)
+        //    {
+        //        _logger.LogCritical(ex, "  Error: The file '{csvFilePath}' was not found.", csvFilePath);
+        //    }
+        //    catch (DirectoryNotFoundException ex)
+        //    {
+        //        _logger.LogCritical(ex, "  Error: The directory for '{csvFilePath}' was not found.", csvFilePath);
+        //    }
+        //    catch (UnauthorizedAccessException ex)
+        //    {
+        //        _logger.LogCritical(ex, "  Error: Access to the file '{csvFilePath}' is denied. Check file permissions.", csvFilePath);
+        //    }
+        //    catch (IOException ex)
+        //    {
+        //        _logger.LogError(ex, "  Error reading CSV file: {ex.Message}", ex.Message);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogCritical(ex, "  An unexpected error occurred during CSV import: {ex.Message}", ex.Message);
+        //    }
+        //}
 
         /// <summary>
         /// Inserts a batch of CsvRow records into SQL Server using a Table-Valued Parameter.
@@ -189,27 +189,27 @@ namespace DailyRunner.Helpers
             return dataTable;
         }
 
-        public async Task WriteToDatabaseAsync<CsvRow>(ChannelReader<string> channel, ClassMap<CsvRow> csvRowMap, int batchSize, string storedProcedureName, string tvpTypeName)
-        {
-            _logger.LogInformation("====== Starting to process files and write to database ======");
-            int filesProcessed = 0;
+        //public async Task WriteToDatabaseAsync<CsvRow>(ChannelReader<string> channel, ClassMap<CsvRow> csvRowMap, int batchSize, string storedProcedureName, string tvpTypeName)
+        //{
+        //    _logger.LogInformation("====== Starting to process files and write to database ======");
+        //    int filesProcessed = 0;
 
-            // Iterate through the channel as long as there are items and the writer hasn't completed
-            await foreach (var filePath in channel.ReadAllAsync())
-            {
-                filesProcessed++;
-                try
-                {
-                    await ImportCsvToSqlServerAsync(Path.GetFullPath(filePath), csvRowMap, batchSize, storedProcedureName, tvpTypeName);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogCritical(ex, "Error processing file '{filePath}': {ex.Message}", filePath, ex.Message);
-                    // In a real app, you might move the file to a "failed" directory for manual review
-                }
-            }
+        //    // Iterate through the channel as long as there are items and the writer hasn't completed
+        //    await foreach (var filePath in channel.ReadAllAsync())
+        //    {
+        //        filesProcessed++;
+        //        try
+        //        {
+        //            await ImportCsvToSqlServerAsync(Path.GetFullPath(filePath), csvRowMap, batchSize, storedProcedureName, tvpTypeName);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            _logger.LogCritical(ex, "Error processing file '{filePath}': {ex.Message}", filePath, ex.Message);
+        //            // In a real app, you might move the file to a "failed" directory for manual review
+        //        }
+        //    }
 
-            _logger.LogInformation("====== Finished processing files. Total files processed: {filesProcessed}======", filesProcessed);
-        }
+        //    _logger.LogInformation("====== Finished processing files. Total files processed: {filesProcessed}======", filesProcessed);
+        //}
     }
 }

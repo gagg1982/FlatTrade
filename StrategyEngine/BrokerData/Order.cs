@@ -6,11 +6,11 @@ using FlatTrade.SubscriptionManager.Order;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
-using StrategyEngine.Strategy;
+using StrategyEngine.Strategies;
 
 namespace StrategyEngine.BrokerData
 {
-    internal class Order : IDisposable
+    internal class Order : IAsyncDisposable
     {
         private bool _disposed = false;
 
@@ -38,10 +38,8 @@ namespace StrategyEngine.BrokerData
             var (orderBook, mesg) = await api.Order.GetOrderBookAsync();
             if (orderBook is null)
             {
-                if (mesg != Constants.StatusOk)
-                    logger.LogError("Error while fetching orders : {mesg}", mesg);
-                else
-                    logger.LogInformation("No orders found: {mesg}", mesg);
+                if (mesg != Constants.StatusOk && !mesg.Contains("no data"))
+                    logger.LogError("Error while fetching orders : {mesg}", mesg);                
             }
             else
             {
@@ -173,28 +171,44 @@ namespace StrategyEngine.BrokerData
 
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this); // Prevent finalizer from running again
+            DisposeAsync().AsTask().GetAwaiter().GetResult(); // Safe synchronous fallback
+            GC.SuppressFinalize(this);
         }
-        protected virtual void Dispose(bool disposing)
+
+        public async ValueTask DisposeAsync()
         {
             if (!_disposed)
             {
-                if (disposing)
-                {
-                    // Dispose managed resources here
-                    _queue.WriteComplete().GetAwaiter().GetResult();
-                    _queue.Dispose();
-                }
-                // Dispose unmanaged resources here if any
+                // Dispose managed resources here
+                await _queue.WriteComplete().ConfigureAwait(false);
+                _queue.Dispose();
+
                 _disposed = true;
             }
+
+            GC.SuppressFinalize(this);
         }
 
         // Finalizer (only if you have unmanaged resources)
         ~Order()
         {
             Dispose(false);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    // Dispose managed resources (no async here)
+                    _queue.Dispose();
+                }
+
+                // Free unmanaged resources here if any
+
+                _disposed = true;
+            }
         }
     }
 }

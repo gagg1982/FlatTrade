@@ -4,7 +4,7 @@ using FlatTrade.HoldingsManager;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
-using StrategyEngine.Strategy;
+using StrategyEngine.Strategies;
 
 namespace StrategyEngine.BrokerData
 {
@@ -49,7 +49,7 @@ namespace StrategyEngine.BrokerData
             var holdings = await GetHoldingDetailsFromServerAsync();
             if (!holdings.Any())
             {
-                _logger.LogInformation("No trades found to update.");
+                _logger.LogInformation("No holdings found to update.");
                 return;
             }
 

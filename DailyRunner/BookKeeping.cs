@@ -483,10 +483,8 @@ namespace DailyRunner
             var (resp, mesg) = await _api.MarketInfo.GetMarginCalculatorEquitiesAsync();
             if (resp is null)
             {
-                if (mesg != Constants.StatusOk)
-                    _logger.LogError("Error while fetching equity margin : {mesg}", mesg);
-                else
-                    _logger.LogInformation("No equity margin found: {mesg}", mesg);
+                if (mesg != Constants.StatusOk && mesg.Contains("no data"))
+                    _logger.LogError("Error while fetching equity margin : {mesg}", mesg);                
             }
             return resp ?? [];
         }

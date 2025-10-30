@@ -5,12 +5,12 @@ using FlatTrade.SubscriptionManager.Quote;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
-using StrategyEngine.Strategy;
+using StrategyEngine.Strategies;
 using System.Collections.Concurrent;
 
 namespace StrategyEngine.BrokerData
 {
-    internal class Quote : IDisposable
+    internal class Quote : IAsyncDisposable
     {
         private bool _disposed = false;
         private readonly Api _api;
@@ -70,14 +70,11 @@ namespace StrategyEngine.BrokerData
             return ok;
         }
 
-        private async Task UpdateOhlcv(string tradingSymbol, Exchange exchange, long token, long quantity, decimal price, DateTime tradeDateTime)
+        private async Task UpdateOhlcv(string tradingSymbol, Exchange exchange, long token, long dayVolume, decimal price, DateTime tradeDateTime)
         {
-            if (string.IsNullOrEmpty(tradingSymbol) || token == 0 || quantity == 0 && price == decimal.MinValue || tradeDateTime == DateTime.MinValue)
+            if (string.IsNullOrEmpty(tradingSymbol) || token == 0 || (dayVolume == 0 && price == decimal.MinValue) || tradeDateTime == DateTime.MinValue)
                 return;
-
-            // bad hack of -1 seconds as Flattrade captures the price exactly at 9:20:00.000 into 9:19:00 candle instead of 9:20:00 candle.
-            // This is impacting OHLCV. Other platforms consider it the part of 9:20 candle instead of 9:19.
-            await _contextAccessor.Candle.UpdateCandlesAsync(tradingSymbol, exchange, token, price, quantity, tradeDateTime.ToLocalTime().AddSeconds(-1));
+            await _contextAccessor.Candle.UpdateCandlesWithQuotesAsync(tradingSymbol, exchange, token, price, dayVolume, tradeDateTime.ToLocalTime());
         }
 
         private async Task UpdateQuotes(QuoteSubscriptionUpdates quoteUpdates)
@@ -101,7 +98,7 @@ namespace StrategyEngine.BrokerData
             await UpdateOhlcv(quoteAfterUpdate.TradingSymbol,
                                 quoteAfterUpdate.Exchange,
                                 quoteAfterUpdate.Token,
-                                quoteAfterUpdate.LastTradeQuantity,
+                                quoteAfterUpdate.DayVolume,
                                 quoteAfterUpdate.LastTradePrice,
                                 quoteAfterUpdate.LastTradeDateTime);
 
@@ -124,7 +121,7 @@ namespace StrategyEngine.BrokerData
             await UpdateOhlcv(quoteAfterUpdate.TradingSymbol,
                                 quoteAfterUpdate.Exchange,
                                 quoteAfterUpdate.Token,
-                                quoteAfterUpdate.LastTradeQuantity,
+                                quoteAfterUpdate.DayVolume,
                                 quoteAfterUpdate.LastTradePrice,
                                 quoteAfterUpdate.LastTradeDateTime);
 
@@ -174,28 +171,44 @@ namespace StrategyEngine.BrokerData
 
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this); // Prevent finalizer from running again
+            DisposeAsync().AsTask().GetAwaiter().GetResult(); // Safe synchronous fallback
+            GC.SuppressFinalize(this);
         }
-        protected virtual void Dispose(bool disposing)
+
+        public async ValueTask DisposeAsync()
         {
             if (!_disposed)
             {
-                if (disposing)
-                {
-                    // Dispose managed resources here
-                    _queue.WriteComplete().GetAwaiter().GetResult();
-                    _queue.Dispose();
-                }
-                // Dispose unmanaged resources here if any
+                // Dispose managed resources here
+                await _queue.WriteComplete().ConfigureAwait(false);
+                _queue.Dispose();
+
                 _disposed = true;
             }
+
+            GC.SuppressFinalize(this);
         }
 
         // Finalizer (only if you have unmanaged resources)
         ~Quote()
         {
             Dispose(false);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    // Dispose managed resources (no async here)
+                    _queue.Dispose();
+                }
+
+                // Free unmanaged resources here if any
+
+                _disposed = true;
+            }
         }
     }
 }

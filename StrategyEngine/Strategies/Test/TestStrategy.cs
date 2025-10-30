@@ -1,24 +1,21 @@
 ﻿using FlatTrade;
-using FlatTrade.Common.Types;
 using FlatTrade.Common.Types.Base;
-using HtmlAgilityPack;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.IdentityModel.Tokens;
 using StrategyEngine.Model;
+using StrategyEngine.OrderProcessors;
 using StrategyEngine.RMS;
 using System.Collections.Concurrent;
 
-namespace StrategyEngine.Strategy
+namespace StrategyEngine.Strategies.Test
 {
     internal class TestStrategy(IConfiguration config, Api api, IRMS rmsManager, IOrderProcessor orderProcessor, ILoggerFactory loggerFactory) 
         : AbstractBaseStrategy<TestStrategy>(config, api, rmsManager, orderProcessor, loggerFactory)
     {        
         protected override string Name => $"{GetType().Name}";
 
-        private ConcurrentDictionary<ChartInterval, (PriceCandle, StreamWriter)> _lastCandle = [];
+        private readonly ConcurrentDictionary<(ChartInterval, string), StreamWriter> _intervalWriter = [];
         private static readonly object _fileLock = new();
-
         protected override Task<StrategySignal?> ProcessInternal(StrategyOnScripSnapshot input)
         {
             return Task.FromResult<StrategySignal?>(default);
@@ -53,29 +50,25 @@ namespace StrategyEngine.Strategy
         }
         protected override Task<StrategySignal?> ProcessInternal(StrategyOnCandleSnapshot input)
         {
-            foreach(var candle in input.Candles)
+            var intervalWriter = _intervalWriter.GetOrAdd((input.ChartInterval,input.TradingSymbol), key =>
             {
-                var lastCandle = _lastCandle.GetOrAdd(input.ChartInterval, key =>
+                var fileName = $"..//..//..//{(int)key.Item1}_{key.Item2}_candles.csv";
+                var writer = new StreamWriter(fileName, append: true)
                 {
-                    var fileName = $"..//..//..//{(int)key}_candles.csv";
-                    var writer = new StreamWriter(fileName, append: true)
-                    {
-                        AutoFlush = false
-                    };
-                    return (candle, writer);
-                });
+                    AutoFlush = false
+                };
+                return writer ;
+            });
 
-                if (lastCandle.Item1 != candle) //StartTimeStamp comparison only.
+            lock (_fileLock)
+            {
+                foreach (var candle in input.Candles.Reverse())
                 {
-                    lock (_fileLock)
-                    {
-                        lastCandle.Item2.WriteLine($"{lastCandle.Item1.StartTimeStamp},{lastCandle.Item1.Open},{lastCandle.Item1.High},{lastCandle.Item1.Low},{lastCandle.Item1.Close},{lastCandle.Item1.Volume}");
-                        lastCandle.Item2.Flush(); // or flush every few writes
-                    }
+                    intervalWriter.WriteLine($"S:{input.TradingSymbol}, T:{candle.StartTimeStamp}, O:{candle.Open}, H:{candle.High}, L:{candle.Low}, C:{candle.Close}, V:{candle.Volume}, Pseudo:{candle.PseudoFlag}, Accum:{candle.AccumulatedVolume}");
+                    intervalWriter.Flush(); // or flush every few writes
                 }
-                
-                _lastCandle.AddOrUpdate(input.ChartInterval, (candle, lastCandle.Item2), (_,_) => (candle, lastCandle.Item2));
             }
+
             return Task.FromResult<StrategySignal?>(default);
         }
     }

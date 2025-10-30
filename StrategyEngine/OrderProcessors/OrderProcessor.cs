@@ -3,7 +3,7 @@ using FlatTrade.Common.Types.Base;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
 
-namespace StrategyEngine
+namespace StrategyEngine.OrderProcessors
 {
     internal class OrderProcessor(Api api, ILoggerFactory loggerFactory) : IOrderProcessor
     {
@@ -168,7 +168,7 @@ namespace StrategyEngine
             var curentDateTime = DateTime.Now;
             var tradingStartDateTime = curentDateTime.Date.AddHours(9).AddMinutes(15);
             var tradingEndDateTime = curentDateTime.Date.AddHours(15).AddMinutes(30);
-            return (curentDateTime < tradingStartDateTime) || (curentDateTime >= tradingEndDateTime);
+            return curentDateTime < tradingStartDateTime || curentDateTime >= tradingEndDateTime;
         }
 
         private async Task CreateOrderLimitAsync(string tradingSymbol, int qty, decimal prc,

@@ -5,16 +5,11 @@ using FlatTrade.SubscriptionManager.TouchLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
-using StrategyEngine.Strategy;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using StrategyEngine.Strategies;
 
 namespace StrategyEngine.BrokerData
 {
-    internal class TouchLine : IDisposable
+    internal class TouchLine : IAsyncDisposable
     {
         private bool _disposed = false;
         private readonly Api _api;
@@ -119,7 +114,7 @@ namespace StrategyEngine.BrokerData
             }
         }
 
-        private Task OnTouchLineUpdates(object? _, SubscriptionType subscriptionType, string rawMessage, object? subscriptionObject)
+        private async Task OnTouchLineUpdates(object? _, SubscriptionType subscriptionType, string rawMessage, object? subscriptionObject)
         {
             var msg = string.Format("Message processed: '{0}'", rawMessage);
 
@@ -127,7 +122,7 @@ namespace StrategyEngine.BrokerData
             {
                 case SubscriptionType.ConnectAck:
                     _logger.LogInformation("[OnTouchLineUpdates-ConnectAck] {msg}", msg);
-                    SubscribeTouchLineAsync(_subscribedSymbols).GetAwaiter().GetResult();
+                    await SubscribeTouchLineAsync(_subscribedSymbols);
                     break;
                 case SubscriptionType.SubscribeTouchLineAck:
                     _logger.LogInformation("[OnTouchLineUpdates-SubscribeTouchLineAck] {msg}", msg);
@@ -135,44 +130,59 @@ namespace StrategyEngine.BrokerData
                     break;
                 case SubscriptionType.UnsubscribeTouchLineAck:
                     _logger.LogInformation("[OnTouchLineUpdates-UnSubscribeTouchLineAck] {msg}", msg);
-                    UnSubscribeTouchLineAsync(_subscribedSymbols).GetAwaiter().GetResult();
+                    await UnSubscribeTouchLineAsync(_subscribedSymbols);
                     break;
                 case SubscriptionType.SubscribeTouchLineUpdates:
                     _logger.LogInformation("[OnTouchLineUpdates-SubscribeTouchLineUpdates] {msg}", msg);
                     if (subscriptionObject is TouchLineSubscriptionUpdates Object)
-                        _queue.WriteAsync(Object).GetAwaiter().GetResult();
+                        await _queue.WriteAsync(Object);
                     break;
                 default:
                     _logger.LogWarning("[OnTouchLineUpdates]: unknown message type '{type}' Msg '{msg}'", subscriptionType, msg);
                     break;
             }
-            return Task.CompletedTask;
         }
 
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this); // Prevent finalizer from running again
+            DisposeAsync().AsTask().GetAwaiter().GetResult(); // Safe synchronous fallback
+            GC.SuppressFinalize(this);
         }
-        protected virtual void Dispose(bool disposing)
+
+        public async ValueTask DisposeAsync()
         {
             if (!_disposed)
             {
-                if (disposing)
-                {
-                    // Dispose managed resources here
-                    _queue.WriteComplete().GetAwaiter().GetResult();
-                    _queue.Dispose();
-                }
-                // Dispose unmanaged resources here if any
+                // Dispose managed resources here
+                await _queue.WriteComplete().ConfigureAwait(false);
+                _queue.Dispose();
+
                 _disposed = true;
             }
+
+            GC.SuppressFinalize(this);
         }
 
         // Finalizer (only if you have unmanaged resources)
         ~TouchLine()
         {
             Dispose(false);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    // Dispose managed resources (no async here)
+                    _queue.Dispose();
+                }
+
+                // Free unmanaged resources here if any
+
+                _disposed = true;
+            }
         }
     }
 }

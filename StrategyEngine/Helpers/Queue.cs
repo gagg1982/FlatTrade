@@ -5,7 +5,7 @@ using System.Threading.Channels;
 
 namespace StrategyEngine.Helpers
 {
-    internal class Queue<T> :IDisposable
+    internal class Queue<T> :IAsyncDisposable
     {
         private bool _disposed = false;
 
@@ -64,27 +64,42 @@ namespace StrategyEngine.Helpers
 
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this); // Prevent finalizer from running again
+            DisposeAsync().AsTask().GetAwaiter().GetResult(); // Safe synchronous fallback
+            GC.SuppressFinalize(this);
         }
-        protected virtual void Dispose(bool disposing)
+
+        public async ValueTask DisposeAsync()
         {
             if (!_disposed)
             {
-                if (disposing)
-                {
-                    // Dispose managed resources here
-                    WriteComplete().GetAwaiter().GetResult();
-                }
-                // Dispose unmanaged resources here if any
+                // Dispose managed resources here
+                await WriteComplete().ConfigureAwait(false);
                 _disposed = true;
             }
+
+            GC.SuppressFinalize(this);
         }
 
         // Finalizer (only if you have unmanaged resources)
         ~Queue()
         {
             Dispose(false);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    // Dispose managed resources (no async here)
+                    Dispose();
+                }
+
+                // Free unmanaged resources here if any
+
+                _disposed = true;
+            }
         }
 
     }

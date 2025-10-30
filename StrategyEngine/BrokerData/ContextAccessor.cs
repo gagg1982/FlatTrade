@@ -1,7 +1,7 @@
 ﻿using FlatTrade;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using StrategyEngine.Strategy;
+using StrategyEngine.Strategies;
 
 namespace StrategyEngine.BrokerData
 {

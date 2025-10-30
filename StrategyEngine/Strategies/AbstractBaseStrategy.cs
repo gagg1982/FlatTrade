@@ -2,9 +2,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
+using StrategyEngine.OrderProcessors;
 using StrategyEngine.RMS;
 
-namespace StrategyEngine.Strategy
+namespace StrategyEngine.Strategies
 {
     internal abstract class AbstractBaseStrategy<T> : IStrategy
     {

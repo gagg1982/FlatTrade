@@ -10,5 +10,7 @@ namespace StrategyEngine.Model
         internal required long Token { get; set; }
         internal required Exchange Exchange { get; set; }
         internal SortedSet<PriceCandle> Candles { get; set; } = [];
+
+        //internal bool IsQuote { get; set; } = false;
     }
 }

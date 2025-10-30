@@ -4,7 +4,7 @@ using FlatTrade.TradeManager;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
-using StrategyEngine.Strategy;
+using StrategyEngine.Strategies;
 
 namespace StrategyEngine.BrokerData
 {
@@ -32,10 +32,8 @@ namespace StrategyEngine.BrokerData
             var (positionBook, mesg) = await _api.Trade.GetPositionBookAsync();
             if (positionBook is null || !positionBook.Any())
             {
-                if (mesg != Constants.StatusOk)
-                    _logger.LogError("Error while fetching positions : {mesg}", mesg);
-                else
-                    _logger.LogInformation("No positions found: {mesg}", mesg);
+                if (mesg != Constants.StatusOk && !mesg.Contains("no data"))
+                    _logger.LogError("Error while fetching positions : {mesg}", mesg);                
             }
             else
             {

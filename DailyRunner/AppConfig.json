@@ -17,11 +17,11 @@
                     },
                     "GetQuotesAsync": {
                         "CallsPerSec": 20,
-                        "CallsPerMin": 420
+                        "CallsPerMin": 400
                     },
                     "GetLinkedScripsAsync": {
                         "CallsPerSec": 20,
-                        "CallsPerMin": 420
+                        "CallsPerMin": 400
                     }
                 }
             },
@@ -91,7 +91,7 @@
         "Enabled": true,
 
         "WriteToFile": {
-            "Enabled": true,
+            "Enabled": false,
             "ChannelCapacity": 5000,
             "CsvFilePath": "../../../CsvData/StocksOhlcv/"
         },
@@ -108,10 +108,10 @@
         "DailyPricesEnabled": true,
         "OneMinutePricesEnabled": true,
 
-        "Enabled": false,
+        "Enabled": true,
 
         "WriteToFile": {
-            "Enabled": true,
+            "Enabled": false,
             "ChannelCapacity": 5000,
             "CsvFilePath": "../../../CsvData/MissingStocksOhlcv/"
         },

@@ -91,10 +91,6 @@ var bookKeeping = new BookKeeping(api, config, loggerFactory);  // for orderbook
 await bookKeeping.GenerateAndLoad();
 
 //=====================================================================
-var fillMissingOhlcv = new FillMissingOhlcv(api, config, loggerFactory);  // for orderbook, tradebook, singleorderhistory
-await fillMissingOhlcv.GenerateAndLoad();
-
-//=====================================================================
 
 var exchangeGenerator = new ExchangeGenerator(api, config, loggerFactory);
 await exchangeGenerator.GenerateAndLoad();
@@ -108,5 +104,9 @@ var listOfExchangeTokenSymbolTuple = await stocksGenerator.GenerateAndLoad();
 
 var stocksOhlcvGenerator = new StocksOhlcvGenerator(api, config, listOfExchangeTokenSymbolTuple, loggerFactory);
 await stocksOhlcvGenerator.GenerateAndLoad();
+
+//=====================================================================
+var fillMissingOhlcv = new FillMissingOhlcv(api, config, loggerFactory); 
+await fillMissingOhlcv.GenerateAndLoad();
 
 //=====================================================================

@@ -1,6 +1,6 @@
 ﻿using StrategyEngine.Model;
 
-namespace StrategyEngine
+namespace StrategyEngine.OrderProcessors.BackTesting
 {
     internal class BackTestingOrderProcessor : IOrderProcessor
     {

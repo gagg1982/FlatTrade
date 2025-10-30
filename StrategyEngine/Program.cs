@@ -6,8 +6,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using StrategyEngine;
+using StrategyEngine.OrderProcessors;
 using StrategyEngine.RMS;
-using StrategyEngine.Strategy;
+using StrategyEngine.Strategies;
+using StrategyEngine.Strategies.Test;
 
 Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
