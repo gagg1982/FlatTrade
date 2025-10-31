@@ -9,7 +9,7 @@ using StrategyEngine.Strategies;
 
 namespace StrategyEngine.BrokerData
 {
-    internal class TouchLine : IAsyncDisposable
+    internal sealed class TouchLine : IAsyncDisposable
     {
         private bool _disposed = false;
         private readonly Api _api;
@@ -53,7 +53,7 @@ namespace StrategyEngine.BrokerData
             }
 
 
-            _logger.LogInformation("Subscribed to touchline updates successfully.");
+            _logger.LogDebug("Subscribed to touchline updates successfully.");
             return ok;
         }
 
@@ -142,47 +142,29 @@ namespace StrategyEngine.BrokerData
                     break;
             }
         }
-
         public void Dispose()
         {
-            DisposeAsync().AsTask().GetAwaiter().GetResult(); // Safe synchronous fallback
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
             GC.SuppressFinalize(this);
         }
 
         public async ValueTask DisposeAsync()
         {
-            if (!_disposed)
-            {
-                // Dispose managed resources here
-                await _queue.WriteComplete().ConfigureAwait(false);
-                _queue.Dispose();
-
-                _disposed = true;
-            }
-
+            await DisposeAsyncCore();
             GC.SuppressFinalize(this);
         }
 
-        // Finalizer (only if you have unmanaged resources)
-        ~TouchLine()
+        private async ValueTask DisposeAsyncCore()
         {
-            Dispose(false);
-        }
+            if (_disposed)
+                return;
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                if (disposing)
-                {
-                    // Dispose managed resources (no async here)
-                    _queue.Dispose();
-                }
+            _disposed = true;
 
-                // Free unmanaged resources here if any
-
-                _disposed = true;
-            }
+            // Dispose async resources
+            await _queue.DisposeAsync();
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
         }
     }
 }

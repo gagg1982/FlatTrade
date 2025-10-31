@@ -26,14 +26,18 @@ namespace FlatTrade.OrderManager
             _httpClient = httpClient;
             _logger = loggerFactory.CreateLogger<Order>();
 
-            var (userResponse, eMsg) = api.User.GetUserDetailsAsync().GetAwaiter().GetResult(); // Ensure user details are fetched on initialization
-            if (userResponse is null)
+            var userResult = Task.Run(async () =>
             {
-                eMsg = "Cannot fetch user details in order. " + eMsg;
-                throw new ApplicationException(eMsg);
-            }
-            UserId = userResponse.UserId;
-            AccountId = userResponse.AccountId;
+                var (userResult, eMsg) = await api.User.GetUserDetailsAsync().ConfigureAwait(false);
+                if (userResult is null)
+                    throw new InvalidOperationException($"Cannot fetch user details. {eMsg}");
+
+               
+                return userResult;
+            }).GetAwaiter().GetResult();
+
+            UserId = userResult.UserId;
+            AccountId = userResult.AccountId;
         }
 
       //[Throttle]

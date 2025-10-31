@@ -2,7 +2,7 @@
 {
     internal delegate Task OnUpdate(object obj);
 
-    internal interface IStrategy
+    internal interface IStrategy: IDisposable, IAsyncDisposable
     {
         Task Process(object? obj);
     }

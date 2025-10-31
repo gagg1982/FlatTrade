@@ -163,12 +163,12 @@ namespace DailyRunner
             _api.Subscription.QuoteSubscription.OnSubscriptionEvents = OnQuoteUpdates;
             foreach (var exchangeTokenSymbolBatch in selection.Chunk(chunkSize))
             {
-                ++cnt;
+                cnt += selection.Chunk(chunkSize).Count();
                 var resp = await _api.Subscription.QuoteSubscription.SubscribeAsync(exchangeTokenSymbolBatch);
                 if (!resp)
                     _logger.LogError("SubscribeCurrentDateOHLCVCsv_1440: Unable to subscribe (count={chunkSize}) : '{batchData}'", chunkSize, JsonConvert.SerializeObject(exchangeTokenSymbolBatch));
             }
-            _logger.LogInformation("SubscribeCurrentDateOHLCVCsv_1440: Total subscriptions {cnt}", cnt * chunkSize);
+            _logger.LogInformation("SubscribeCurrentDateOHLCVCsv_1440: Total subscriptions {cnt}", cnt);
         }
 
         private async Task UnSubscribeCurrentDateOHLCVCsv_1440(Exchange exchange, long token, string tradingSymbol)
@@ -271,7 +271,7 @@ namespace DailyRunner
                                 if (Interlocked.Increment(ref cnt) % 500 == 0)
                                 {
                                     _logger.LogInformation("Processed {exchangeTokenSymbol.Item1} {cnt}/{total} stocks for 1440 minute OHLCV data.", exchangeTokenSymbol.Item1, cnt, _exchangeTokenSymbolTuple.Count());
-                                    //Thread.Sleep(1000);
+                                    //await Task.Delay(1000);
                                 }
 
                                 _logger.LogDebug("Called API for : {msg}", msg);
@@ -343,7 +343,7 @@ namespace DailyRunner
                                 if (Interlocked.Increment(ref cnt) % 500 == 0)
                                 {
                                     _logger.LogInformation("Processed {exchangeTokenSymbol.Item1} {cnt}/{total} stocks for 1 minute OHLCV data.", exchangeTokenSymbol.Item1, cnt, _exchangeTokenSymbolTuple.Count());
-                                    //Thread.Sleep(1000);
+                                    //await Task.Delay(1000);
                                 }
                                 
                                 _logger.LogDebug("Calling API for : {msg}", msg);

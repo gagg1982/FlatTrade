@@ -5,8 +5,9 @@ using StrategyEngine.Strategies;
 
 namespace StrategyEngine.BrokerData
 {
-    internal class ContextAccessor
+    internal sealed class ContextAccessor : IAsyncDisposable, IDisposable
     {
+        private bool _disposed = false;
         private readonly IConfiguration _config;
         private readonly Api _api;
         private readonly ILogger _logger;
@@ -25,6 +26,7 @@ namespace StrategyEngine.BrokerData
         {
             _api = api;
             _config = config;
+
             _logger = loggerFactory.CreateLogger<ContextAccessor>();
             Holding = new(config, this, api, onUpdate, loggerFactory);
             Security = new(config, this, api, onUpdate, loggerFactory);
@@ -34,6 +36,34 @@ namespace StrategyEngine.BrokerData
             Order = new(config, this, api, onUpdate, loggerFactory);
             Quote = new(config, this, api, onUpdate, loggerFactory);
             TouchLine = new(config, this, api, onUpdate, loggerFactory);
+        }
+
+        public void Dispose()
+        {
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        private async ValueTask DisposeAsyncCore()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            await Quote.DisposeAsync();
+            await Order.DisposeAsync();
+            await TouchLine.DisposeAsync();
+            await Candle.DisposeAsync();
+
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
         }
     }
 }

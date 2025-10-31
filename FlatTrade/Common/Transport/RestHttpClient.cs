@@ -5,22 +5,9 @@ using System.Net.Http.Headers;
 
 namespace FlatTrade.Common.Transport
 {
-    public class RestHttpClient : IAsyncDisposable, IDisposable
+    public class RestHttpClient
     {
         private readonly HttpClient _httpClient;
-
-        public void Dispose()
-        {
-            GC.SuppressFinalize(this);
-            _httpClient.Dispose();
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            GC.SuppressFinalize(this);
-            Dispose();
-            return ValueTask.CompletedTask;
-        }
 
         public RestHttpClient(HttpClient httpClient, string baseAddress)
         {
@@ -30,7 +17,7 @@ namespace FlatTrade.Common.Transport
                 _httpClient.BaseAddress = new Uri(baseAddress);
             }
             _httpClient.DefaultRequestHeaders.Accept.Clear();
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));           
         }
 
         public HttpClient GetNativeHttpClient()
@@ -152,6 +139,5 @@ namespace FlatTrade.Common.Transport
             }
             return (responseBody ?? string.Empty, eMsg);
         }
-
     }
 }

@@ -5,8 +5,9 @@ using Newtonsoft.Json;
 
 namespace FlatTrade.SubscriptionManager.Quote
 {
-    public class QuoteSubscription(Subscription subscription, ILoggerFactory loggerFactory) : ISubscriptionType, IUpdateHandler
+    public class QuoteSubscription(Subscription subscription, ILoggerFactory loggerFactory) : ISubscriptionType, IUpdateHandler, IDisposable, IAsyncDisposable
     {
+        private bool _disposed = false;
         private readonly ILogger<QuoteSubscription> _logger = loggerFactory.CreateLogger<QuoteSubscription>();
         private readonly Subscription _subscription = subscription;
         public OnSubscriptionEvents? OnSubscriptionEvents = null;
@@ -37,14 +38,20 @@ namespace FlatTrade.SubscriptionManager.Quote
                 return true;
             }
             _subscribedTokens.RemoveAll(e => validExchangepairs.Any(v => v.Key == e.Key && v.Value == e.Value));
-            var request = new QuoteUnsubscriptionRequest { SubscriptionScriptList = pair, RequestType = SubscriptionType.UnsubscribeQuote };
-            return await _subscription.SendRequestAsync(request);
+            var request = new QuoteUnsubscriptionRequest { SubscriptionScriptList = pair, RequestType = SubscriptionType.UnsubscribeQuote };            
+            if (await _subscription.SendRequestAsync(request))            
+                return true;
+            
+            _logger.LogError("Failed to unsubscribe from quotes updates.");
+            return false;
+
         }
 
         public IEnumerable<SubscriptionType> GetSubscriptionTypes()
         {
 
             return [
+                    SubscriptionType.ConnectAck,
                     SubscriptionType.SubscribeQuoteUpdates,
                     SubscriptionType.SubscribeQuoteAck,
                     SubscriptionType.UnsubscribeQuoteAck];
@@ -100,6 +107,35 @@ namespace FlatTrade.SubscriptionManager.Quote
             {
                 _logger.LogError("[Quote Subscription]: OnMessageReceived Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
+        }
+        public void Dispose()
+        {
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        protected async ValueTask DisposeAsyncCore()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            // Dispose async resources
+            if (_subscribedTokens is not null && _subscribedTokens.Any())
+                await UnsubscribeAsync(_subscribedTokens);
+
+            _subscribedTokens!.Clear();
+            OnSubscriptionEvents = null;
+
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
         }
     }
 }

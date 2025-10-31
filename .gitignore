@@ -33,3 +33,9 @@
 /FlatTrade.Test/bin/Release/net8.0
 /DailyRunner/Tokens/FlatTrade.AccessToken.Token.Common
 *.Common
+/StrategyEngine/10_RVNL-EQ_candles.csv
+/StrategyEngine/15_RVNL-EQ_candles.csv
+/StrategyEngine/1_RVNL-EQ_candles.csv
+/StrategyEngine/30_RVNL-EQ_candles.csv
+/StrategyEngine/3_RVNL-EQ_candles.csv
+/StrategyEngine/5_RVNL-EQ_candles.csv

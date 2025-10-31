@@ -4,8 +4,9 @@ using Newtonsoft.Json;
 namespace FlatTrade.SubscriptionManager.Order
 {
 
-    public class OrderSubscription(Subscription subscription, string accountId, string userId, ILoggerFactory loggerFactory) : ISubscriptionType, IUpdateHandler
+    public class OrderSubscription(Subscription subscription, string accountId, string userId, ILoggerFactory loggerFactory) : ISubscriptionType, IUpdateHandler, IDisposable, IAsyncDisposable
     {
+        private bool _disposed = false;
         private readonly ILogger<OrderSubscription> _logger = loggerFactory.CreateLogger<OrderSubscription>();
         private readonly Subscription _subscription = subscription;
         private OnSubscriptionEvents? _onSubscriptionEvents = null;
@@ -25,12 +26,12 @@ namespace FlatTrade.SubscriptionManager.Order
 
             if (await _subscription.SendRequestAsync(request))
             {
-                _logger.LogInformation("Unsubscribed from order subscription updates successfully.");
+                _logger.LogInformation("Unsubscribed from order updates successfully.");
                 _onSubscriptionEvents = null;
                 return true;
             }
 
-            _logger.LogError("Failed to unsubscribe from order subscription updates.");
+            _logger.LogError("Failed to unsubscribe from order updates.");
             return false;
         }
 
@@ -57,7 +58,7 @@ namespace FlatTrade.SubscriptionManager.Order
 
         public IEnumerable<SubscriptionType> GetSubscriptionTypes()
         {
-            return [
+            return [SubscriptionType.ConnectAck,
                 SubscriptionType.SubscribeOrderUpdate,
                 SubscriptionType.SubscribeOrderAck,
                 SubscriptionType.UnsubscribeOrderAck];
@@ -113,6 +114,35 @@ namespace FlatTrade.SubscriptionManager.Order
             {
                 _logger.LogError("[Order Subscription]: OnMessageReceived Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
+        }
+
+        public void Dispose()
+        {
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        protected async ValueTask DisposeAsyncCore()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            // Dispose async resources
+            if(_onSubscriptionEvents is not null)
+                await UnsubscribeAsync(_onSubscriptionEvents);
+
+            _onSubscriptionEvents = null;
+
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
         }
     }
 }

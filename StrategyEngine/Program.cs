@@ -22,11 +22,13 @@ IConfiguration config = new ConfigurationBuilder()
 
 Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(config)
+                .Enrich.FromLogContext()
                 .CreateLogger();
 
 AppDomain.CurrentDomain.ProcessExit += (s, e) => Log.CloseAndFlush();
 
-var loggerFactory = new LoggerFactory().AddSerilog();
+var loggerFactory = new LoggerFactory().AddSerilog(Log.Logger, dispose:true);
+
 var throttler = new RateLimiterThrottleInterceptor(config, loggerFactory);
 
 //=====================================================================
@@ -47,8 +49,12 @@ var rms = new RmsManager();
 // No need to change the strategy class.
 var orderProcessor = new OrderProcessor(api, loggerFactory);
 
-IStrategy strategy = new TestStrategy(config, api, rms, orderProcessor, loggerFactory);
+var strategy = new TestStrategy(config, api, rms, orderProcessor, loggerFactory);
 StrategyProcessor strategyProcessor = new(config, api, strategy, loggerFactory);
 
 Console.ReadKey();
+
+await api.DisposeAsync();
+await strategy.DisposeAsync();
+await strategyProcessor.DisposeAsync();
 //=====================================================================

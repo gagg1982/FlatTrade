@@ -10,7 +10,7 @@ using System.Collections.Concurrent;
 
 namespace StrategyEngine.BrokerData
 {
-    internal class Quote : IAsyncDisposable
+    internal sealed class Quote : IAsyncDisposable
     {
         private bool _disposed = false;
         private readonly Api _api;
@@ -48,7 +48,7 @@ namespace StrategyEngine.BrokerData
             var selectionProjection = _subscribedSymbols.Select(a => new KeyValuePair<Exchange, long>(a.Exchange, a.Token));
 
             var ok = await _api.Subscription.QuoteSubscription.SubscribeAsync(selectionProjection);
-            _logger.LogInformation("Subscribed to quote updates {0}.", ok ? "successfully" : "failed");
+            _logger.LogDebug("Subscribed to quote updates {0}.", ok ? "successfully" : "failed");
             return ok;
         }
 
@@ -70,11 +70,27 @@ namespace StrategyEngine.BrokerData
             return ok;
         }
 
-        private async Task UpdateOhlcv(string tradingSymbol, Exchange exchange, long token, long dayVolume, decimal price, DateTime tradeDateTime)
+        private async Task UpdateOhlcv(string tradingSymbol, Exchange exchange, long token, long currentVolume, long previousVolume, decimal latestPrice, decimal previousPrice, DateTime tradeDateTime)
         {
-            if (string.IsNullOrEmpty(tradingSymbol) || token == 0 || (dayVolume == 0 && price == decimal.MinValue) || tradeDateTime == DateTime.MinValue)
+            if(currentVolume == 0 || latestPrice == decimal.MinValue)
+            {
+                _logger.LogWarning("{0}:UpdateOhlcv: None of them is available. CurrentVolume: {1}, PriceToUpdate: {2}. Skipping update...", GetType().Name, currentVolume, latestPrice);
                 return;
-            await _contextAccessor.Candle.UpdateCandlesWithQuotesAsync(tradingSymbol, exchange, token, price, dayVolume, tradeDateTime.ToLocalTime());
+            }
+
+            if(
+                token == 0 ||
+                previousVolume == 0 ||
+                previousPrice == decimal.MinValue ||
+                string.IsNullOrEmpty(tradingSymbol) ||              
+                tradeDateTime == DateTime.MinValue
+              )
+            {
+                _logger.LogWarning("{0}:UpdateOhlcv: One of the mandatory field missing. Skipping update...", GetType().Name);
+                return;
+            }
+                
+            await _contextAccessor.Candle.UpdateCandlesWithQuotesAsync(tradingSymbol, exchange, token, latestPrice, previousPrice, currentVolume == 0 ? previousVolume: currentVolume, tradeDateTime.ToLocalTime());
         }
 
         private async Task UpdateQuotes(QuoteSubscriptionUpdates quoteUpdates)
@@ -86,6 +102,16 @@ namespace StrategyEngine.BrokerData
                 Exchange = quoteUpdates.Exchange,
             };
             newQuoteUpdate.Update(quoteUpdates);
+
+            long prevVolume = 0;
+            decimal prevPrice = decimal.MinValue;
+            details.QuoteSubscription.TryGetValue(quoteUpdates.Exchange, out QuoteSubscriptionRequestAck? beforeUpdate);
+            if (beforeUpdate is not null)
+            {
+                prevVolume = beforeUpdate.DayVolume;
+                prevPrice = beforeUpdate.LastTradePrice;
+            }
+
             var quoteAfterUpdate = details.QuoteSubscription.AddOrUpdate(newQuoteUpdate.Exchange, newQuoteUpdate, (_, existing) =>
             {
                 lock (existing)
@@ -95,11 +121,13 @@ namespace StrategyEngine.BrokerData
                 }
             });
 
-            await UpdateOhlcv(quoteAfterUpdate.TradingSymbol,
+            await UpdateOhlcv(  quoteAfterUpdate.TradingSymbol,
                                 quoteAfterUpdate.Exchange,
-                                quoteAfterUpdate.Token,
-                                quoteAfterUpdate.DayVolume,
-                                quoteAfterUpdate.LastTradePrice,
+                                quoteAfterUpdate.Token,                                
+                                quoteUpdates.DayVolume, //current volume
+                                prevVolume,
+                                quoteUpdates.LastTradePrice, //latest
+                                prevPrice,
                                 quoteAfterUpdate.LastTradeDateTime);
 
             if (_onQuote is not null)
@@ -109,6 +137,15 @@ namespace StrategyEngine.BrokerData
         private async Task UpdateQuotes(QuoteSubscriptionRequestAck quoteUpdates)
         {
             var details = GlobalDataSet.Subscriptions.GetOrAdd(quoteUpdates.Token, new SubscriptionDetails());
+            long prevVolume = 0;
+            decimal prevPrice = decimal.MinValue;
+            details.QuoteSubscription.TryGetValue(quoteUpdates.Exchange, out QuoteSubscriptionRequestAck? beforeUpdate);
+            if (beforeUpdate is not null)
+            {
+                prevVolume = beforeUpdate.DayVolume;
+                prevPrice = beforeUpdate.LastTradePrice;
+            }
+
             var quoteAfterUpdate = details.QuoteSubscription.AddOrUpdate(quoteUpdates.Exchange, quoteUpdates, (_, existing) =>
             {
                 lock (existing)
@@ -121,9 +158,11 @@ namespace StrategyEngine.BrokerData
             await UpdateOhlcv(quoteAfterUpdate.TradingSymbol,
                                 quoteAfterUpdate.Exchange,
                                 quoteAfterUpdate.Token,
-                                quoteAfterUpdate.DayVolume,
-                                quoteAfterUpdate.LastTradePrice,
-                                quoteAfterUpdate.LastTradeDateTime);
+                                quoteUpdates.DayVolume,
+                                prevVolume,
+                                quoteUpdates.LastTradePrice, //latest
+                                prevPrice,
+                                quoteUpdates.LastTradeDateTime);
 
             if (_onQuote is not null)
                 await _onQuote(new StrategyOnQuoteSnapshot
@@ -167,48 +206,33 @@ namespace StrategyEngine.BrokerData
                     _logger.LogWarning("[OnQuoteUpdates]: unknown message type '{type}' Msg '{msg}'", subscriptionType, msg);
                     break;
             }
-        }
+        }     
 
         public void Dispose()
         {
-            DisposeAsync().AsTask().GetAwaiter().GetResult(); // Safe synchronous fallback
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
             GC.SuppressFinalize(this);
         }
 
         public async ValueTask DisposeAsync()
         {
-            if (!_disposed)
-            {
-                // Dispose managed resources here
-                await _queue.WriteComplete().ConfigureAwait(false);
-                _queue.Dispose();
-
-                _disposed = true;
-            }
-
+            await DisposeAsyncCore();
             GC.SuppressFinalize(this);
         }
 
-        // Finalizer (only if you have unmanaged resources)
-        ~Quote()
+        private async ValueTask DisposeAsyncCore()
         {
-            Dispose(false);
-        }
+            if (_disposed)
+                return;
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                if (disposing)
-                {
-                    // Dispose managed resources (no async here)
-                    _queue.Dispose();
-                }
+            _disposed = true;
 
-                // Free unmanaged resources here if any
+            // Dispose async resources
+            _subscribedSymbols.Clear();
+            await _queue.DisposeAsync();
 
-                _disposed = true;
-            }
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
         }
     }
 }

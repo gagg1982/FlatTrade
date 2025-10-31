@@ -51,42 +51,33 @@
                     priceCandle.StartTimeStamp != DateTime.MinValue;
         }
 
-        public bool UpdateCandle(PriceCandle other)
+        public bool ApplyQuotes(DateTime startDateTime, decimal price, long volume, bool pseudoPrice)
         {
-            if (StartTimeStamp != other.StartTimeStamp || !IsValid(other))
+            if (startDateTime != StartTimeStamp)
                 return false;
 
-            var previousOpen = Open;
-            var previousHigh = High;
-            var previousLow =  Low;
-            var previousClose = Close;
-            var prevVolume = Volume;
-
-            Open = other.Open;
-            High = other.High;
-            Low = other.Low;
-            Close = other.Close;
-            Volume = other.Volume;
-
-            if(previousOpen != Open || previousClose != Close || previousHigh != High || previousLow != Low || prevVolume != Volume)
-                return true;
-            return false;
-        }
-
-        public bool ApplyWithQuotes(PriceCandle other)
-        {
-            if (StartTimeStamp != other.StartTimeStamp || !IsValid(other))
-                return false;
-
-            if (PseudoFlag)
+            //If input price is pseudo, no need to update, exisiting candle has already previous price through shifting
+            //OR
+            //1st price received for this time has the price from previous candle.
+            if(pseudoPrice)
             {
-                Open = other.Open;
-                High = other.High;
-                Low = other.Low;
-                Close = other.Close;
-                AccumulatedVolume = other.AccumulatedVolume;
-                Volume = other.Volume;
-                PseudoFlag = false;
+                var prevVolume = Volume;
+                Volume = volume - AccumulatedVolume;
+                if (prevVolume != Volume)
+                    return true;
+                return false;
+            }
+
+            // The below will hit only when actual price of the interval comes.
+            if (PseudoFlag)
+            {             
+                Open = price;
+                High = price;
+                Low = price;
+                Close = price;
+                Volume = volume - AccumulatedVolume;
+
+                PseudoFlag = false;                
                 return true;
             }
 
@@ -94,15 +85,16 @@
             var previousHigh = High;
             var previousLow = Low;
             var previousClose = Close;
-            var prevVolume = Volume;
+            var previousVolume = Volume;
 
-            High = Math.Max(other.High, High);
-            Low = Math.Min(other.Low, Low);
-            Close = other.Close;
-            Volume = other.Volume;
+            High = Math.Max(price, High);
+            Low = Math.Min(price, Low);
+            Close = price;
+            Volume = volume - AccumulatedVolume;
 
-            if (previousClose != Close || previousHigh != High || previousLow != Low || Volume != prevVolume)
+            if (previousClose != Close || previousHigh != High || previousLow != Low || previousVolume != Volume)
                 return true;
+
             return false;
         }
 
@@ -126,7 +118,7 @@
             PseudoFlag = false;
             
             
-            if (previousOpen != Open || previousClose != Close || previousHigh != High || previousLow != Low || prevVolume != Volume)
+            if (previousOpen != Open || previousClose != Close || previousHigh != High || previousLow != Low)
                 return true;
             return false;
         }

@@ -15,6 +15,7 @@ namespace StrategyEngine.BrokerData
 {
     internal class Candle : IAsyncDisposable
     {
+        private bool _disposed = false;
         private readonly IConfiguration _config;
         private readonly Api _api;
         private readonly ILogger _logger;
@@ -39,15 +40,9 @@ namespace StrategyEngine.BrokerData
             _config = config;
             _contextAccessor = contextAccessor;
             _onCandles += onUpdate;
-            
+
             _shiftIntervalTask = Task.Run(() => RunAsync(_cts.Token));
             _logger.LogInformation("Candle:RunAsync task Scheduled.");
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            await StopAsync();
-            _cts.Dispose();
         }
 
         private async Task RunAsync(CancellationToken token)
@@ -90,10 +85,10 @@ namespace StrategyEngine.BrokerData
                             token = scrip.Token;
 
                         var priceCandleSet = priceInfo[interval];
-                        PriceCandle? previousCandleFromView = null;
+                        PriceCandle? holder = null;
                         lock (priceCandleSet)
                         {
-                            previousCandleFromView = priceCandleSet.FirstOrDefault();
+                            var previousCandleFromView = priceCandleSet.FirstOrDefault();
                             if (previousCandleFromView is not null)
                             {
                                 if (!priceCandleSet.TryGetValue(currentCandle, out PriceCandle? currentCandleFromView) &&
@@ -105,18 +100,23 @@ namespace StrategyEngine.BrokerData
                                         Open = previousCandleFromView.Close,
                                         Close = previousCandleFromView.Close,
                                         High = previousCandleFromView.Close,
-                                        Low = previousCandleFromView.Close,
+                                        Low = previousCandleFromView.Close,                                        
+                                        AccumulatedVolume = previousCandleFromView.AccumulatedVolume + previousCandleFromView.Volume,
                                         Volume = 0,
-                                        AccumulatedVolume = previousCandleFromView.AccumulatedVolume,
                                         PseudoFlag = true
                                     };
                                     priceCandleSet.Add(pseudoCurrentCandle);
+                                    _logger.LogWarning("===========Shift Added: I:{0}, T:{1}, O:{2}, AC:{3}",
+                                    interval,
+                                    pseudoCurrentCandle.StartTimeStamp,
+                                    pseudoCurrentCandle.Open,
+                                    pseudoCurrentCandle.AccumulatedVolume);
+                                    holder = pseudoCurrentCandle.Clone();
                                 }
                             }
                         }
 
-                        if (previousCandleFromView is not null &&
-                            previousCandleFromView.PseudoFlag &&
+                        if (holder is not null &&
                             _onCandles is not null)
                         {
                             await _onCandles(new StrategyOnCandleSnapshot
@@ -125,7 +125,7 @@ namespace StrategyEngine.BrokerData
                                 Exchange = exch,
                                 Token = token,
                                 TradingSymbol = tradingSymbol,
-                                Candles = [previousCandleFromView]
+                                Candles = [holder]
                             });
                         }
                     }));
@@ -144,7 +144,7 @@ namespace StrategyEngine.BrokerData
                 await Task.Delay(delay, token);
 
                 // Run your logic at the exact minute
-                if (now.Hour >= 9 && now.Hour <= 18)
+                if (now.Hour >= 9 && now.Hour <= 22)
                 {
                     await ShiftCandles(chartInterval);
                     //await WriteCandles();
@@ -161,109 +161,78 @@ namespace StrategyEngine.BrokerData
             try
             {
                 await _shiftIntervalTask;
+                _onCandles = null;
             }
             catch (TaskCanceledException)
             {
                 // Expected during shutdown
             }
             _cts.Dispose();
-        }
+        }       
 
-        //public async Task UpdateCandlesAsync(string tradingSymbol, Exchange exchange, long token, decimal price, long quantity, DateTime tradeDateTime)
-        //{
-        //    if (_priceIntervals.Contains(ChartInterval.Daily))
-        //        _logger.LogWarning("Daily interval candles cannot be fetched using TimePriceData API. Continuing for rest of the intervals...");
-
-        //    List<Task> tasks = [];
-        //    var selection = new SelectedSymbol { Exchange = exchange, Token = token, TradingSymbol = tradingSymbol };
-        //    var start = tradeDateTime.AddSeconds(-tradeDateTime.Second).AddMinutes(-2);
-        //    var end = tradeDateTime.Date.AddDays(1);
-
-        //    tasks.Add(UpdateHistoricCandlesHelperAsync(_api, [selection], start, end, _onCandles, _logger));
-        //    await Task.WhenAll(tasks);
-        //}
-
-        public async Task UpdateCandlesWithQuotesAsync(string tradingSymbol, Exchange exchange, long token, decimal price, long dayVolume, DateTime tradeDateTime)
+        public async Task UpdateCandlesWithQuotesAsync(string tradingSymbol, Exchange exchange, 
+                                                        long token, decimal latestPrice, 
+                                                        decimal previousPrice, long currentDayVolume, DateTime tradeDateTime
+                                                      )
         {
             if (_priceIntervals.Contains(ChartInterval.Daily))
                 _logger.LogWarning("Daily interval candles cannot be fetched using TimePriceData API. Continuing for rest of the intervals...");
-            List<Task> tasks = [];
-            var priceResponseObject = new TimePriceDataResponse {   ClosePrice = price, OpenPrice = price, HighPrice = price, LowPrice = price, Volume = dayVolume, StartDateTime = tradeDateTime };
-
-            tasks.Add(UpdateCandlesWithQuotesHelperAsync(_api, priceResponseObject, exchange, tradingSymbol, token, _onCandles, _logger));
-            await Task.WhenAll(tasks);
-        }
-
-        private static async Task UpdateCandlesWithQuotesHelperAsync(Api api,
-                                                           TimePriceDataResponse resp,
-                                                           Exchange exchange,
-                                                           string tradingSymbol,
-                                                           long token,
-                                                           OnUpdate? _onCandles,
-                                                           ILogger logger
-                                                          )
-        {
-            var customIntervalCandleSet = GenerateIntervalCandles(_priceIntervals, [resp]);
 
             var details = GlobalDataSet.Data.GetOrAdd(tradingSymbol, _ => new Details());
             var priceCandleDict = details.PriceCandleInfo.GetOrAdd(exchange, _ => new());
-
-            foreach (var (interval, customCandleSet) in customIntervalCandleSet)
+            
+            foreach (var (interval, sortedSet) in priceCandleDict)
             {
-                if (customCandleSet is null)
+                if (sortedSet is null)
                 {
-                    logger.LogWarning("Candle:UpdateCandlesWithQuotesHelperAsync: Candles are not computed for interval {0} min.", interval);
+                    _logger.LogWarning("Candle:UpdateCandlesWithQuotesHelperAsync: Candles are not computed for {0} min interval. Skipping update... ", interval);
                     continue;
                 }
 
-                var set = priceCandleDict.GetOrAdd(interval, _ => new SortedSet<PriceCandle>());
-
-                SortedSet<PriceCandle> holder = [];
-                if(customCandleSet.Count > 1)
+                SortedSet<PriceCandle> holder = [];                               
+                lock (sortedSet)
                 {
-                    logger.LogError("Candle:UpdateCandlesWithQuotesHelperAsync: Multiple candles generated for interval {0} in updates. Ideally only once candle should be generated.", interval);
-                }
-                //  Per interval only one candle will be generated in case of updates.
-                var candleToApply = customCandleSet.First(); 
-                lock (set)
-                {
-                    set.TryGetValue(new PriceCandle { StartTimeStamp = candleToApply.StartTimeStamp.AddMinutes(-(int)interval) }, out PriceCandle? previousCandle);
-                                       
-                    set.TryGetValue(candleToApply, out PriceCandle? existingCandle);
+                    var currentTimeInterval = Utility.AlignToInterval(tradeDateTime, (int)interval);
+                    var previousTimeInterval = currentTimeInterval.AddMinutes(-(int)interval);
+                    
+                    sortedSet.TryGetValue(new PriceCandle { StartTimeStamp = previousTimeInterval }, out PriceCandle? previousCandle);
+                    sortedSet.TryGetValue(new PriceCandle { StartTimeStamp = currentTimeInterval }, out PriceCandle? existingCandle);
+                    
                     if(existingCandle is null)
                     {
-                        if (previousCandle is not null) //overwriting for accumulated volume
+                        var accumVol = currentDayVolume;
+                        if (previousCandle is not null && previousCandle.AccumulatedVolume !=0)
                         {
-                            candleToApply.AccumulatedVolume = previousCandle.AccumulatedVolume == 0 ? candleToApply.Volume: previousCandle.AccumulatedVolume;
-                            candleToApply.Volume = candleToApply.Volume - previousCandle.AccumulatedVolume;
+                            accumVol = previousCandle.AccumulatedVolume + previousCandle.Volume;
                         }
-                        else
+
+                        var newPriceCandleToAdd = new PriceCandle
                         {
-                            candleToApply.AccumulatedVolume = candleToApply.Volume;
-                            candleToApply.Volume = 0;
-                        }
-                        set.Add(candleToApply);
-                        holder.Add(candleToApply.Clone());
+                            StartTimeStamp = currentTimeInterval,
+                            Open = latestPrice == decimal.MinValue ? previousPrice : latestPrice,
+                            High = latestPrice == decimal.MinValue ? previousPrice : latestPrice,
+                            Low = latestPrice == decimal.MinValue ? previousPrice : latestPrice,
+                            Close = latestPrice == decimal.MinValue ? previousPrice : latestPrice,
+                            PseudoFlag = (latestPrice == decimal.MinValue),
+                            AccumulatedVolume = accumVol,
+                            Volume = currentDayVolume - accumVol,
+                        };
+
+                        sortedSet.Add(newPriceCandleToAdd);
+                        _logger.LogWarning("====== Candle Added: T:{0}, V{1}, AccumVol:{2}, P:{3}, Pseudo:{4}, ActualTime:{5}, LatestP:{6}, PreviousP:{7}", newPriceCandleToAdd.StartTimeStamp, newPriceCandleToAdd.Volume, newPriceCandleToAdd.AccumulatedVolume, newPriceCandleToAdd.Open, newPriceCandleToAdd.PseudoFlag, tradeDateTime, latestPrice, previousPrice);
+                        
+                        if(!newPriceCandleToAdd.PseudoFlag)
+                            holder.Add(newPriceCandleToAdd.Clone());
                     }
                     else
-                    {                            
-                        if (candleToApply.Open == decimal.MinValue && previousCandle is not null)
-                        {
-                            candleToApply.Open = previousCandle.Close;
-                            candleToApply.High = previousCandle.Close;
-                            candleToApply.Low = previousCandle.Close;
-                            candleToApply.Close = previousCandle.Close;
-                            candleToApply.Volume = candleToApply.Volume - existingCandle.AccumulatedVolume;
-                            // not touching the Accumulated volume here (in case of update).
-                        }
-
-                        if(existingCandle.ApplyWithQuotes(candleToApply))
+                    {
+                        _logger.LogWarning("===== Candle Updated: T:{0}, P:{1}, V:{2}, Pseudo:{3}", currentTimeInterval, latestPrice, currentDayVolume, latestPrice == decimal.MinValue);
+                        if (existingCandle.ApplyQuotes(currentTimeInterval, latestPrice, currentDayVolume, latestPrice == decimal.MinValue))
                             holder.Add(existingCandle.Clone());
-                    }
-                   
+                    }                   
                 }
 
-                if (_onCandles is not null && holder is not null && holder.Any())
+                if (_onCandles is not null && holder.Any())
                 {
                     await _onCandles(new StrategyOnCandleSnapshot
                     {
@@ -310,7 +279,7 @@ namespace StrategyEngine.BrokerData
                     
                     if (cnt > 3 || (resp is not null && resp.Any()))
                         break;
-                    Thread.Sleep(100);
+                    await Task.Delay(100);
                 }
 
                 if (msg.Contains("no data"))
@@ -373,6 +342,30 @@ namespace StrategyEngine.BrokerData
                 resp.TryAdd(timeInterval, Utility.AggregateCandles(oneMinutePriceData, (int)timeInterval));
 
             return resp;
+        }
+
+        public void Dispose()
+        {
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        private async ValueTask DisposeAsyncCore()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            await StopAsync();
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+
         }
     }
 }

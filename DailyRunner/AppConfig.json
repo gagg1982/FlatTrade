@@ -17,11 +17,11 @@
                     },
                     "GetQuotesAsync": {
                         "CallsPerSec": 20,
-                        "CallsPerMin": 400
+                        "CallsPerMin": 360
                     },
                     "GetLinkedScripsAsync": {
                         "CallsPerSec": 20,
-                        "CallsPerMin": 400
+                        "CallsPerMin": 360
                     }
                 }
             },
@@ -175,7 +175,7 @@
             {
                 "Name": "Console",
                 "Args": {
-                    "outputTemplate": "[{Timestamp:HH:mm:ss.fff} {Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}"
+                    "outputTemplate": "[{Timestamp:HH:mm:ss.fff} | {Level:u3} | {SourceContext,-55} | {Message:lj}{NewLine}{Exception}"
                 }
             },
             {
@@ -185,7 +185,7 @@
                     "rollingInterval": "Day",
                     "retainedFileCountLimit": 7,
                     "fileSizeLimitBytes": 104857600,
-                    "outputTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj}{NewLine}{Exception}"
+                    "outputTemplate": "[{Timestamp:HH:mm:ss.fff} | {Level:u3} | {SourceContext,-55} | {Message:lj}{NewLine}{Exception}"
                 }
             }
         ],

@@ -238,7 +238,7 @@ namespace DailyRunner
                             {
                                 --retry;
                                 mesg = msg;
-                                Thread.Sleep(100);
+                                await Task.Delay(100);
                             }
                             else
                             {
@@ -276,7 +276,7 @@ namespace DailyRunner
                 if (Interlocked.Increment(ref cnt) % 500 == 0)
                 {
                     _logger.LogDebug("GetQuotesAsync api called {cnt}/{total}", cnt, securityInfoList.Count);
-                    //Thread.Sleep(1000);
+                    //await Task.Delay(1000);
                 }
                 int retry = 2;
                 string mesg = string.Empty;
@@ -287,7 +287,7 @@ namespace DailyRunner
                     {
                         --retry;
                         mesg = msg;
-                        Thread.Sleep(500);
+                        await Task.Delay(500);
                     }
                     else
                     {
@@ -306,7 +306,7 @@ namespace DailyRunner
                 if (quoteList.Count % 500 == 0)
                 {
                     _logger.LogInformation("GetQuotesAsync api response {quoteList}/{total}", quoteList.Count, securityInfoList.Count);
-                    //Thread.Sleep(1000);
+                    //await Task.Delay(1000);
                 }
             }
             //await Utility.WhenAllSafe([..tasks]);
@@ -334,7 +334,7 @@ namespace DailyRunner
                             {
                                 --retry;
                                 mesg = msg;
-                                Thread.Sleep(100);
+                                await Task.Delay(100);
                             }
                             else
                             {
@@ -360,7 +360,7 @@ namespace DailyRunner
                         if (linkedScrips.Count % 500 == 0)
                         {
                             _logger.LogInformation("GetLinkedScripsAsync api response {securityInfoList}/{total}", linkedScrips.Count, securityInfoList.Count);
-                            //Thread.Sleep(1000);
+                            //await Task.Delay(1000);
                         }
                     }
                 }));

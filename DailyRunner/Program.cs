@@ -24,7 +24,7 @@ Log.Logger = new LoggerConfiguration()
 
 AppDomain.CurrentDomain.ProcessExit += (s, e) => Log.CloseAndFlush();
 
-var loggerFactory = new LoggerFactory().AddSerilog();
+var loggerFactory = new LoggerFactory().AddSerilog(Log.Logger);
 //var throttler = config.GetSection("Api:Throttling:RateLimiter").Get<RateLimiterThrottleSetting>();
 //var throttler = new OutstandingThrottleInterceptor(config);
 var throttler = new RateLimiterThrottleInterceptor(config, loggerFactory);
@@ -106,7 +106,7 @@ var stocksOhlcvGenerator = new StocksOhlcvGenerator(api, config, listOfExchangeT
 await stocksOhlcvGenerator.GenerateAndLoad();
 
 //=====================================================================
-var fillMissingOhlcv = new FillMissingOhlcv(api, config, loggerFactory); 
+var fillMissingOhlcv = new FillMissingOhlcv(api, config, loggerFactory);
 await fillMissingOhlcv.GenerateAndLoad();
 
 //=====================================================================

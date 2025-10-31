@@ -43,7 +43,11 @@ namespace StrategyEngine.BrokerData
             }
             else
             {
-                logger.LogInformation("Fetched {orderBookCount} orders from the order book.", orderBook.Count());
+                logger.LogInformation("Fetched {orderBookCount} orders from the order book. Rejected:{1}, Cancelled:{3}, Completed:{2}", 
+                                        orderBook.Count(),
+                                        orderBook.Where(o => o.OrderStatus == OrderStatus.Rejected).Count(),
+                                        orderBook.Where(o => o.OrderStatus == OrderStatus.Cancelled).Count(),
+                                        orderBook.Where(o => o.OrderStatus == OrderStatus.Completed).Count());
             }
             return orderBook ?? [];
         }
@@ -64,7 +68,7 @@ namespace StrategyEngine.BrokerData
                 throw new ApplicationException(msg);
             }
 
-            _logger.LogInformation("Subscription request for order updates sent successfully.");
+            _logger.LogDebug("Subscription request for order updates sent successfully.");
         }
 
         public async Task UnSubscribeOrderUpdates()
@@ -171,44 +175,28 @@ namespace StrategyEngine.BrokerData
 
         public void Dispose()
         {
-            DisposeAsync().AsTask().GetAwaiter().GetResult(); // Safe synchronous fallback
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
             GC.SuppressFinalize(this);
         }
 
         public async ValueTask DisposeAsync()
         {
-            if (!_disposed)
-            {
-                // Dispose managed resources here
-                await _queue.WriteComplete().ConfigureAwait(false);
-                _queue.Dispose();
-
-                _disposed = true;
-            }
-
+            await DisposeAsyncCore();
             GC.SuppressFinalize(this);
         }
 
-        // Finalizer (only if you have unmanaged resources)
-        ~Order()
+        private async ValueTask DisposeAsyncCore()
         {
-            Dispose(false);
-        }
+            if (_disposed)
+                return;
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                if (disposing)
-                {
-                    // Dispose managed resources (no async here)
-                    _queue.Dispose();
-                }
+            _disposed = true;
 
-                // Free unmanaged resources here if any
+            // Dispose async resources
+            await _queue.DisposeAsync();
 
-                _disposed = true;
-            }
-        }
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
+        }       
     }
 }

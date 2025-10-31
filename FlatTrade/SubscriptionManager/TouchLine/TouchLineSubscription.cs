@@ -5,8 +5,9 @@ using Newtonsoft.Json;
 
 namespace FlatTrade.SubscriptionManager.TouchLine
 {
-    public class TouchlineSubscription(Subscription subscription, ILoggerFactory loggerFactory) : ISubscriptionType, IUpdateHandler
+    public class TouchlineSubscription(Subscription subscription, ILoggerFactory loggerFactory) : ISubscriptionType, IUpdateHandler, IDisposable, IAsyncDisposable
     {
+        private bool _disposed = false;
         private readonly List<KeyValuePair<Exchange, long>> _subscribedTokens = [];
         private readonly ILogger<TouchlineSubscription> _logger = loggerFactory.CreateLogger<TouchlineSubscription>();
         private readonly Subscription _subscription = subscription;
@@ -37,12 +38,16 @@ namespace FlatTrade.SubscriptionManager.TouchLine
             }
             _subscribedTokens.RemoveAll(e => validExchangePairs.Any(v => v.Key == e.Key && v.Value == e.Value));
             var request = new TouchLineUnsubscriptionRequest { SubscriptionScriptList = pair, RequestType = SubscriptionType.UnsubscribeTouchLine };
-            return await _subscription.SendRequestAsync(request);
+            if (await _subscription.SendRequestAsync(request))
+                return true;            
+
+            _logger.LogError("Failed to unsubscribe from touchline updates.");
+            return false;
         }
 
         public IEnumerable<SubscriptionType> GetSubscriptionTypes()
         {
-            return [
+            return [SubscriptionType.ConnectAck,
                     SubscriptionType.SubscribeTouchLineUpdates,
                     SubscriptionType.SubscribeTouchLineAck,
                     SubscriptionType.UnsubscribeTouchLineAck];
@@ -99,5 +104,36 @@ namespace FlatTrade.SubscriptionManager.TouchLine
                 _logger.LogError("[TouchLine Subscription]: OnMessageReceived Exception : {e.Message}. Message {data}", e.Message, subscriptionEvent.RawMessage);
             }
         }
+
+        public void Dispose()
+        {
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        protected async ValueTask DisposeAsyncCore()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            // Dispose async resources
+            if (_subscribedTokens is not null && _subscribedTokens.Any())
+                await UnsubscribeAsync(_subscribedTokens);
+
+            _subscribedTokens!.Clear();
+            OnSubscriptionEvents = null;
+            
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
+        }
+
     }
 }

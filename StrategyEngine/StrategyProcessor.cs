@@ -5,11 +5,14 @@ using Microsoft.Extensions.Logging;
 using StrategyEngine.BrokerData;
 using StrategyEngine.Model;
 using StrategyEngine.Strategies;
+using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace StrategyEngine
 {
-    internal class StrategyProcessor
+    internal class StrategyProcessor : IAsyncDisposable, IDisposable
     {
+        private bool _disposed = false;
         private readonly ILogger<StrategyProcessor> _logger;
         private readonly ILoggerFactory _loggerFactory;
         private readonly Api _api;        
@@ -17,6 +20,7 @@ namespace StrategyEngine
         private readonly ContextAccessor _contextAccessor;
         private readonly IStrategy _strategy;
 
+        private List<Task> _tasks = [];
         internal StrategyProcessor(IConfiguration config, Api api, IStrategy strategy, ILoggerFactory loggerFactory)
         {
             _api = api;
@@ -29,44 +33,62 @@ namespace StrategyEngine
             List<SelectedSymbol> selectSymbolsFortrading = [
                 new SelectedSymbol() { Exchange = Exchange.NSE, Token = 9552, TradingSymbol ="RVNL-EQ" }];
 
-            List<Task> taskList = [];
 
             _contextAccessor = new(config, _api, _strategy.Process, _loggerFactory);
             _logger.LogInformation("[1] Initializing Securities...");
-
-            taskList.Add(_contextAccessor.Security.UpdateSecurityInfo(selectSymbolsFortrading));
+            _tasks.Add(_contextAccessor.Security.UpdateSecurityInfo(selectSymbolsFortrading));
 
             _logger.LogInformation("[2] Initializing TradeBook");
-            taskList.Add(_contextAccessor.Trade.UpdateTradeDetails());
+            _tasks.Add(_contextAccessor.Trade.UpdateTradeDetails());
 
             _logger.LogInformation("[3] Initializing Positions");
-            taskList.Add(_contextAccessor.Position.UpdatePositions());
+            _tasks.Add(_contextAccessor.Position.UpdatePositions());
 
             _logger.LogInformation("[4] Initializing Holdings");
-            taskList.Add(_contextAccessor.Holding.UpdateHoldingDetails());
+            _tasks.Add(_contextAccessor.Holding.UpdateHoldingDetails());
 
-            _logger.LogInformation("[5] Initializing CandlePrices");           
-            taskList.Add(_contextAccessor.Candle.GetHistoricCandlesFromServerAsync(selectSymbolsFortrading));
+            _logger.LogInformation("[5] Initializing CandlePrices");
+            _tasks.Add(_contextAccessor.Candle.GetHistoricCandlesFromServerAsync(selectSymbolsFortrading));
 
-            _logger.LogInformation("[6] Initializing OrderBook");            
-            taskList.Add(_contextAccessor.Order.UpdateOrderBook());
+            _logger.LogInformation("[6] Initializing OrderBook");
+            _tasks.Add(_contextAccessor.Order.UpdateOrderBook());
 
-            _logger.LogInformation("[7] Initializing Subscriptions");
-            
-            _logger.LogInformation(     "[7-A] Initializing Order Updates");
-            taskList.Add(_contextAccessor.Order.SubscribeOrderUpdates());
-            
-            _logger.LogInformation(     "[7-A] Initializing TouchLine Updates");
-            taskList.Add(_contextAccessor.TouchLine.SubscribeTouchLineAsync(selectSymbolsFortrading));
-            
-            _logger.LogInformation("    [7-A] Initializing Quote Updates");
-            taskList.Add(_contextAccessor.Quote.SubscribeQuoteAsync(selectSymbolsFortrading));
+            _logger.LogInformation("[7] Initializing Subscriptions");            
+            _logger.LogInformation("   [7-A] Initializing Order Updates");
+            _tasks.Add(_contextAccessor.Order.SubscribeOrderUpdates());            
+            _logger.LogInformation("   [7-B] Initializing TouchLine Updates");
+            _tasks.Add(_contextAccessor.TouchLine.SubscribeTouchLineAsync(selectSymbolsFortrading));            
+            _logger.LogInformation("   [7-C] Initializing Quote Updates");
+            _tasks.Add(_contextAccessor.Quote.SubscribeQuoteAsync(selectSymbolsFortrading));
 
             //ReadConfigFile(configFile);
             //ReadRMSRules(configFile);
-            
-            Task.WhenAll(taskList).GetAwaiter().GetResult();
             ////===============================================================================================
+        }
+
+        public void Dispose()
+        {
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        private async ValueTask DisposeAsyncCore()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            await _contextAccessor.DisposeAsync();
+            await Task.WhenAll(_tasks);
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
         }
 
         //public async Task Execute()
@@ -74,7 +96,7 @@ namespace StrategyEngine
 
         //}
 
-        
+
         //public void ReadConfigFile(string configFile)
         //{
         //    var configRoot = new ConfigurationBuilder().AddJsonFile(configFile, false, true).Build();

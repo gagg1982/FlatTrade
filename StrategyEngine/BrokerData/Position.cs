@@ -12,7 +12,7 @@ namespace StrategyEngine.BrokerData
     {
         private readonly IConfiguration _config;
         private readonly Api _api;
-        private readonly ILogger _logger;
+        private readonly ILogger<Position> _logger;
         private readonly ContextAccessor _contextAccessor;
 
         private event OnUpdate? _onPositons;

@@ -21,7 +21,7 @@
     /// <summary>
     /// 
     /// </summary>
-    public class Subscription : ISubscriptionType
+    public sealed class Subscription : IAsyncDisposable, IDisposable
     {
         private readonly ILogger<Subscription> _logger;
         private readonly CustomWebSocket _customClientWebSocket;
@@ -31,54 +31,66 @@
         public readonly QuoteSubscription QuoteSubscription;
         public readonly AlertSubscription AlertSubscription;
 
-        readonly ConcurrentDictionary<SubscriptionType, AsyncEventHandler<SubscriptionEventArgs>> _updateHandlers = [];
-        public Subscription(string accountId, string userId, string accessToken, ILoggerFactory loggerFactory)
+        private readonly ConcurrentDictionary<SubscriptionType, AsyncEventHandler<SubscriptionEventArgs>> _updateHandlers = [];
+
+        private bool _disposed;
+
+        private Subscription(string accountId, string userId, string accessToken, ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<Subscription>();
+
             if (string.IsNullOrEmpty(accountId) || string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(accessToken))
-            {
                 throw new ArgumentException("User account, user ID, and access token must be provided.");
-            }
-            var _accountId = accountId;
-            var _userId = userId;
 
-            _logger.LogInformation("[Subscription Logic]: Initializing WebSocket connection for user: {_accountId} with ID: {_userId}", _accountId, _userId);
-            GetSubscriptionTypes().ToList().ForEach(v => { _updateHandlers.TryAdd(v, OnConnectReceived); });
+            _logger.LogInformation("[Subscription]: Initializing WebSocket for user: {AccountId}", accountId);
 
-            _customClientWebSocket = new CustomWebSocket(new Uri(EndPoints.WebSocketUrl), loggerFactory);
-            _customClientWebSocket.OnMessageReceived += OnMessageReceived;
+            GetSubscriptionTypes().ToList().ForEach(v => _updateHandlers.TryAdd(v, OnConnectReceived));
+
+            _customClientWebSocket = new CustomWebSocket(new Uri(EndPoints.WebSocketUrl), OnMessageReceived, loggerFactory);
 
             TouchLineSubscription = new TouchlineSubscription(this, loggerFactory);
-            TouchLineSubscription.GetSubscriptionTypes().ToList().ForEach(v => { _updateHandlers.TryAdd(v, TouchLineSubscription.OnMessageReceived); });
+            TouchLineSubscription.GetSubscriptionTypes().ToList().ForEach(v => _updateHandlers.TryAdd(v, TouchLineSubscription.OnMessageReceived));
 
-            OrderSubscription = new OrderSubscription(this, _accountId, _userId, loggerFactory);
-            OrderSubscription.GetSubscriptionTypes().ToList().ForEach(v => { _updateHandlers.TryAdd(v, OrderSubscription.OnMessageReceived); });
+            OrderSubscription = new OrderSubscription(this, accountId, userId, loggerFactory);
+            OrderSubscription.GetSubscriptionTypes().ToList().ForEach(v => _updateHandlers.TryAdd(v, OrderSubscription.OnMessageReceived));
 
             QuoteSubscription = new QuoteSubscription(this, loggerFactory);
-            QuoteSubscription.GetSubscriptionTypes().ToList().ForEach(v => { _updateHandlers.TryAdd(v, QuoteSubscription.OnMessageReceived); });
+            QuoteSubscription.GetSubscriptionTypes().ToList().ForEach(v => _updateHandlers.TryAdd(v, QuoteSubscription.OnMessageReceived));
 
             AlertSubscription = new AlertSubscription(this, loggerFactory, null);
-            AlertSubscription.GetSubscriptionTypes().ToList().ForEach(v => { _updateHandlers.TryAdd(v, AlertSubscription.OnMessageReceived); });
+            AlertSubscription.GetSubscriptionTypes().ToList().ForEach(v => _updateHandlers.TryAdd(v, AlertSubscription.OnMessageReceived));
+        }
 
-            if (_customClientWebSocket.StartAsync().GetAwaiter().GetResult())
+        /// <summary>
+        /// Factory for async initialization.
+        /// </summary>
+        public static async Task<Subscription> CreateAsync(string accountId, string userId, string accessToken, ILoggerFactory loggerFactory)
+        {
+            var instance = new Subscription(accountId, userId, accessToken, loggerFactory);
+
+            instance._customClientWebSocket.Start(); // non-blocking
+
+            var request = new ConnectRequest
             {
-                var request = new ConnectRequest { AccountId = _accountId, RequestType = SubscriptionType.Connect, UserId = _userId, UserSessionToken = accessToken };
-                if (!SendRequestAsync(request).GetAwaiter().GetResult())
-                    throw new InvalidOperationException("Failed to send connect message to WebSocket server.");
-            }
-            else
+                AccountId = accountId,
+                RequestType = SubscriptionType.Connect,
+                UserId = userId,
+                UserSessionToken = accessToken
+            };
+
+            if (!await instance.SendRequestAsync(request))
             {
-                var msg = "Unable to connect to Websocket";
-                _logger.LogCritical("{msg}", msg);
-                throw new InvalidOperationException(msg);
+                throw new InvalidOperationException("Failed to send connect message to WebSocket server.");
             }
+
+            return instance;
         }
 
         private Task OnConnectReceived(object? obj, SubscriptionEventArgs subscriptionEvent)
         {
             if (string.IsNullOrEmpty(subscriptionEvent?.RawMessage))
             {
-                _logger.LogWarning("[Subscription OnConnect]: Received empty message from WebSocket.");
+                _logger.LogWarning("[Subscription]: Empty message received.");
                 return Task.CompletedTask;
             }
 
@@ -87,61 +99,79 @@
             {
                 if (!msg.Status?.Equals("Ok", StringComparison.OrdinalIgnoreCase) ?? true)
                 {
-                    _logger.LogError("[Subscription Logic]: ConnectAck failed with status: {message}", subscriptionEvent.RawMessage);
-                    return Task.CompletedTask;
+                    _logger.LogError("[Subscription]: ConnectAck failed: {Message}", subscriptionEvent.RawMessage);
                 }
-
-                _logger.LogDebug("[Subscription Logic]: ConnectAck message received: '{message}'", subscriptionEvent.RawMessage);
-                return Task.CompletedTask;
+                else
+                {
+                    _logger.LogDebug("[Subscription]: ConnectAck OK: {Message}", subscriptionEvent.RawMessage);
+                }
             }
-            _logger.LogError("[Subscription Logic]: Incorrect message received in connect handler: '{message}'", subscriptionEvent.RawMessage);
             return Task.CompletedTask;
         }
 
-        //[Throttle]
-        public async virtual Task<bool> SendRequestAsync<T>(T request)
+        public async Task<bool> SendRequestAsync<T>(T request)
         {
             var serializedMessage = JsonConvert.SerializeObject(request);
-            return await _customClientWebSocket.SendMessageAsync(serializedMessage!);
+            return await _customClientWebSocket.SendMessageAsync(serializedMessage);
         }
 
         private async Task OnMessageReceived(object? sender, string message)
         {
             if (string.IsNullOrEmpty(message))
             {
-                _logger.LogWarning("[Subscription OnMessage]: Received empty message from WebSocket.");
+                _logger.LogWarning("[Subscription]: Empty message received.");
                 return;
             }
 
-            var mesg = JsonConvert.DeserializeObject<BaseSubscriptionRequest>(message);
-            if (mesg == null)
+            var msg = JsonConvert.DeserializeObject<BaseSubscriptionRequest>(message);
+            if (msg == null)
             {
-                _logger.LogError("[Subscription Logic]: Unrecognized message type received: '{message}'", message);
+                _logger.LogError("[Subscription]: Unrecognized message: {Message}", message);
                 return;
             }
 
-            if (mesg.RequestType == SubscriptionType.ConnectAck)
+            if (_updateHandlers.TryGetValue(msg.RequestType, out var handler) && handler is not null)
             {
-                var subscriptionEventArgs = new SubscriptionEventArgs(mesg.RequestType, message);
-                await TouchLineSubscription.OnMessageReceived(mesg, subscriptionEventArgs);
-                await AlertSubscription.OnMessageReceived(mesg, subscriptionEventArgs);
-                await QuoteSubscription.OnMessageReceived(mesg, subscriptionEventArgs);
-                await OrderSubscription.OnMessageReceived(mesg, subscriptionEventArgs);
-                return;
+                await handler.Invoke(this, new SubscriptionEventArgs(msg.RequestType, message));
             }
-
-            if (_updateHandlers.TryGetValue(mesg.RequestType, out AsyncEventHandler<SubscriptionEventArgs>? handler) && handler is not null)
+            else
             {
-                await handler.Invoke(this, new SubscriptionEventArgs(mesg.RequestType, message!));                
-                return;
+                _logger.LogError("[Subscription]: No handler for message type {Type}.", msg.RequestType);
             }
-
-            _logger.LogError("[Subscription Logic]: No handler registered for message type '{mesg.RequestType}' received: '{message}'", mesg.RequestType, message);
         }
 
-        public IEnumerable<SubscriptionType> GetSubscriptionTypes()
+        public IEnumerable<SubscriptionType> GetSubscriptionTypes() => [SubscriptionType.ConnectAck];
+
+        public void Dispose()
         {
-            return [SubscriptionType.ConnectAck];
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
         }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        private async ValueTask DisposeAsyncCore()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            // Dispose async resources
+            await TouchLineSubscription.DisposeAsync();
+            await OrderSubscription.DisposeAsync();
+            await QuoteSubscription.DisposeAsync();
+            await AlertSubscription.DisposeAsync();
+
+            await _customClientWebSocket.DisposeAsync();
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
+        }
+
     }
+
 }

@@ -5,11 +5,12 @@ using System.Threading.Channels;
 
 namespace StrategyEngine.Helpers
 {
-    internal class Queue<T> :IAsyncDisposable
+    internal sealed class Queue<T> :IAsyncDisposable, IDisposable
     {
         private bool _disposed = false;
 
         public delegate Task OnEnqueue(T Object);
+
         private readonly ILogger<Queue<T>> _logger;
         private readonly Channel<T> _channel;
         private readonly Task _task;
@@ -22,13 +23,12 @@ namespace StrategyEngine.Helpers
             _logger = loggerFactory.CreateLogger<Queue<T>>();
             _queueFriendlyName = queueFriendlyName;
             _channel = HelperUtility.CreateBoundedChannel<T>(capacity);
-            
             _task = WriteAsync();
         }
 
         public async Task WriteComplete()
         {
-            _channel.Writer.Complete();
+            _channel.Writer.TryComplete();
             await _task;
         }
 
@@ -61,46 +61,31 @@ namespace StrategyEngine.Helpers
                 _queueFriendlyName, objectsProcessed + objectsfailed, objectsProcessed, objectsfailed);
         }
 
-
         public void Dispose()
         {
-            DisposeAsync().AsTask().GetAwaiter().GetResult(); // Safe synchronous fallback
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
             GC.SuppressFinalize(this);
         }
 
         public async ValueTask DisposeAsync()
         {
-            if (!_disposed)
-            {
-                // Dispose managed resources here
-                await WriteComplete().ConfigureAwait(false);
-                _disposed = true;
-            }
-
+            await DisposeAsyncCore();
             GC.SuppressFinalize(this);
         }
 
-        // Finalizer (only if you have unmanaged resources)
-        ~Queue()
+        private async ValueTask DisposeAsyncCore()
         {
-            Dispose(false);
-        }
+            if (_disposed)
+                return;
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                if (disposing)
-                {
-                    // Dispose managed resources (no async here)
-                    Dispose();
-                }
+            _disposed = true;
 
-                // Free unmanaged resources here if any
-
-                _disposed = true;
-            }
-        }
+            // Dispose async resources
+            await WriteComplete();
+            await _task;
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
+        }        
 
     }
 }

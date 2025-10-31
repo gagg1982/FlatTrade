@@ -5,270 +5,221 @@ using System.Text;
 namespace FlatTrade.Common.Transport
 {
     public delegate Task AsyncEventHandler<TEventArgs>(object sender, TEventArgs e);
-    public class CustomWebSocket
+
+    public class CustomWebSocket : IAsyncDisposable
     {
         private readonly ILogger<CustomWebSocket> _logger;
-        private readonly string _webSocketUri = string.Empty;
+        private readonly string _webSocketUri;
 
-        private ClientWebSocket? _clientWebSocket; // The WebSocket client instance
-        private CancellationTokenSource? _cancellationTokenSource; // For managing task cancellation
+        private ClientWebSocket? _clientWebSocket;
+        private CancellationTokenSource? _cts;
+        private Task? _runLoopTask;
+        private bool _disposed;
 
-        public event AsyncEventHandler<string>? OnMessageReceived;
+        private event AsyncEventHandler<string>? _onMessageReceived;
 
-        private readonly Thread _keepAliveThread;
-        private bool _running = false;
-
-        public CustomWebSocket(Uri uri, ILoggerFactory loggerFactory)
+        public CustomWebSocket(Uri uri, AsyncEventHandler<string>? handler, ILoggerFactory loggerFactory)
         {
-            if (uri == null || !uri.IsAbsoluteUri || uri.Scheme != Uri.UriSchemeWs && uri.Scheme != Uri.UriSchemeWss)
+            if (uri == null || !uri.IsAbsoluteUri ||
+                (uri.Scheme != Uri.UriSchemeWs && uri.Scheme != Uri.UriSchemeWss))
             {
                 throw new ArgumentException("Invalid WebSocket URI provided.", nameof(uri));
             }
-            _webSocketUri = uri.ToString(); // Store the valid WebSocket URI
+
+            _webSocketUri = uri.ToString();
             _logger = loggerFactory.CreateLogger<CustomWebSocket>();
-            _cancellationTokenSource = new CancellationTokenSource(); // Initialize cancellation token source
-
-            _running = true;
-            _keepAliveThread = new Thread(async () => await KeepAliveLoop())
-            {
-                IsBackground = true
-            };
-
+            _onMessageReceived = handler;
         }
-        private async Task KeepAliveLoop()
+
+        // ---------------------------------------------------------------------
+        // Public API
+        // ---------------------------------------------------------------------
+
+        public void Start()
         {
-            while (_running && _clientWebSocket!.State == WebSocketState.Open)
+            // Fire-and-forget non-blocking loop
+            _runLoopTask = Task.Run(RunForeverAsync);
+        }
+
+        public async Task<bool> SendMessageAsync(string message)
+        {
+            int cnt = 0;
+            while (true)
+            {
+                ++cnt;
+                if (_clientWebSocket == null || _clientWebSocket.State != WebSocketState.Open)
+                {
+                    _logger.LogWarning("SendMessageAsync: socket not open. Retrying in 500ms.");
+                    await Task.Delay(500);
+                    continue;
+                }
+                if (cnt > 5)
+                {
+                    _logger.LogWarning("SendMessageAsync: socket not open.");
+                    return false;
+                }
+                break;
+            }
+
+            try
+            {
+                var bytes = Encoding.UTF8.GetBytes(message);
+                await _clientWebSocket.SendAsync(bytes, WebSocketMessageType.Text, true, _cts!.Token);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending message");
+                return false;
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // Core Loop
+        // ---------------------------------------------------------------------
+
+        private async Task RunForeverAsync()
+        {
+            int retry = 0;
+
+            while (!_disposed)
             {
                 try
                 {
-                    // Send ping (here just a text "ping", but could be custom protocol-level ping)
-                    var buffer = Encoding.UTF8.GetBytes("ping");
-                    await _clientWebSocket.SendAsync(new ArraySegment<byte>(buffer),
-                                        WebSocketMessageType.Text,
-                                        true,
-                                        _cancellationTokenSource!.Token);
-
-                    _logger.LogDebug("Sent keep-alive ping");
-
-                    // Wait 15s before next ping
-                    await Task.Delay(TimeSpan.FromSeconds(15), _cancellationTokenSource!.Token);
+                    await StartAndRunAsync();
+                    retry = 0; // reset after successful run
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug("Keep-alive failed : {ex.Message}", ex.Message);
-                    break;
+                    retry++;
+                    var delay = TimeSpan.FromMilliseconds(Math.Min(1000, 100 * retry));
+                    _logger.LogWarning(ex, "WebSocket disconnected, retrying in {Delay}s", delay.TotalSeconds);
+                    await Task.Delay(delay);
                 }
             }
         }
 
-        public async Task<bool> StartAsync()
+        private async Task StartAndRunAsync()
         {
-            _logger.LogInformation("Attempting to connect to: {_webSocketUri}", _webSocketUri);
+            _cts = new CancellationTokenSource();
+            _clientWebSocket = new ClientWebSocket();
 
-            try
-            {
-                _clientWebSocket = new ClientWebSocket();
+            await _clientWebSocket.ConnectAsync(new Uri(_webSocketUri), _cts.Token);
+            _logger.LogInformation("Connected to {Uri}", _webSocketUri);
 
-                // 1. Connect to the WebSocket server
-                // The CancellationToken can be used to abort the connection attempt if it takes too long.
-                await _clientWebSocket.ConnectAsync(new Uri(_webSocketUri), _cancellationTokenSource!.Token);
-                _logger.LogInformation("WebSocket connected successfully!");
+            var receive = ReceiveLoopAsync(_cts.Token);
+            var keepAlive = KeepAliveLoopAsync(_cts.Token);
 
-                _ = Task.Run(async () => await ReceiveLoopAsync(_cancellationTokenSource.Token));
-                _logger.LogInformation("Started background message receiving loop.");
+            await Task.WhenAny(receive, keepAlive);
 
-                _keepAliveThread.Start();
-            }
-            catch (WebSocketException wse)
-            {
-                _logger.LogError("WebSocket connection error: {wseMessage}", wse.Message);
-                if (wse.InnerException != null)
-                    _logger.LogError("  Inner Exception: {wseInnerExceptionMessage}", wse.InnerException.Message);
-
-                _clientWebSocket?.Dispose();
-                _clientWebSocket = null;
-                _cancellationTokenSource?.Dispose();
-                _cancellationTokenSource = null;
-                throw;
-            }
-            catch (UriFormatException ufe)
-            {
-                _logger.LogCritical("Invalid WebSocket URI format: {ufeMessage}", ufe.Message);
-                return false;
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogInformation("WebSocket connection attempt was cancelled.");
-                _clientWebSocket?.Dispose();
-                _clientWebSocket = null;
-                _cancellationTokenSource?.Dispose();
-                _cancellationTokenSource = null;
-                throw; // Re-throw
-            }
-            catch (Exception ex)
-            {
-                _logger.LogCritical("An unexpected error occurred during StartAsync: {exMessage}", ex.Message);
-                _clientWebSocket?.Dispose();
-                _clientWebSocket = null;
-                _cancellationTokenSource?.Dispose();
-                _cancellationTokenSource = null;
-                throw; // Re-throw
-            }
-
-            return true;
+            _logger.LogWarning("WebSocket loop ended.");
         }
 
-        /// <summary>
-        /// Handles sending messages to the WebSocket server.
-        /// </summary>
-        public async Task<bool> SendMessageAsync(string message)
-        {
-            // Check if the WebSocket is connected and ready to send
-            if (_clientWebSocket == null || _clientWebSocket.State != WebSocketState.Open)
-            {
-                _logger.LogError("SendMessageAsync: WebSocket is not open. Message not sent.");
-                return false;
-            }
+        // ---------------------------------------------------------------------
+        // Message handling
+        // ---------------------------------------------------------------------
 
-            // Convert string message to bytes using UTF8 encoding
-            byte[] buffer = Encoding.UTF8.GetBytes(message);
-            var segment = new ArraySegment<byte>(buffer);
+        private async Task ReceiveLoopAsync(CancellationToken token)
+        {
+            var buffer = new byte[8192];
 
             try
             {
-                // Send the message as text. 'true' for 'endOfMessage' indicates this is a complete message.
-                await _clientWebSocket.SendAsync(segment, WebSocketMessageType.Text, true, _cancellationTokenSource!.Token);
-                _logger.LogDebug("  Sent: '{message}'", message);
-                return true;
-            }
-            catch (WebSocketException wse)
-            {
-                _logger.LogError("Error sending message: {wse.Message}", wse.Message);
-                // If sending fails, it indicates a problem, so initiate shutdown.
-                _cancellationTokenSource?.Cancel();
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogError("Sending was cancelled.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogCritical("Unexpected error sending message: {ex.Message}", ex.Message);
-                _cancellationTokenSource?.Cancel();
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Handles receiving messages from the WebSocket server.
-        /// </summary>
-        private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
-        {
-            if (_clientWebSocket == null || _clientWebSocket.State != WebSocketState.Open)
-            {
-                _logger.LogInformation("ReceiveLoop: WebSocket is not open, cannot start receive loop.");
-                return;
-            }
-
-            // Use a larger buffer for receiving to handle larger messages efficiently.
-            // WebSocket messages can be fragmented, but ClientWebSocket handles reassembly for full messages.
-            byte[] buffer = new byte[1024 * 4]; // 4KB buffer
-            var segment = new ArraySegment<byte>(buffer);
-
-            try
-            {
-                // Continue receiving as long as the WebSocket is open and cancellation has not been requested
-                while (_clientWebSocket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
+                while (!token.IsCancellationRequested &&
+                       _clientWebSocket?.State == WebSocketState.Open)
                 {
-                    // Receive a message. This call blocks until a message is received or the connection is closed/aborted.
-                    WebSocketReceiveResult result = await _clientWebSocket.ReceiveAsync(segment, cancellationToken);
+                    var result = await _clientWebSocket.ReceiveAsync(buffer, token);
 
-                    // Process the received message based on its type
                     if (result.MessageType == WebSocketMessageType.Text)
                     {
-                        string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                        //_logger.LogDebug("  Recv: '{receivedMessage}'", receivedMessage);
-                        OnMessageReceived?.Invoke(this, receivedMessage);
-                    }
-                    else if (result.MessageType == WebSocketMessageType.Binary)
-                    {
-                        _logger.LogInformation("  Received (Binary): {resultCount} bytes. (Not currently processed)", result.Count);
-                        // If you expect binary data, process the 'buffer' here.
+                        var msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        if (_onMessageReceived != null)
+                            await _onMessageReceived(this, msg);
                     }
                     else if (result.MessageType == WebSocketMessageType.Close)
                     {
-                        _logger.LogWarning("  Received Close message from server. Status: {resultCloseStatus} ({resultCloseStatusDescription})", result.CloseStatus, result.CloseStatusDescription);
-                        // Server requested to close. Acknowledge the close.
-                        // Use CancellationToken.None to ensure the close operation itself isn't cancelled.
-                        await _clientWebSocket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Client closing", CancellationToken.None);
-                        // Signal to stop the loop and client
-                        //_cancellationTokenSource?.Cancel();
-                        await StartAsync();
+                        _logger.LogWarning("Server requested close: {Status} {Desc}",
+                            result.CloseStatus, result.CloseStatusDescription);
                         break;
                     }
                 }
             }
-            catch (WebSocketException wse)
+            catch (OperationCanceledException) { }
+            catch (WebSocketException ex)
             {
-                _logger.LogError("Error in ReceiveLoop: {wseMessage}", wse.Message);
-                // Initiate cancellation if an error occurs to stop other tasks and cleanup.
-                //_cancellationTokenSource?.Cancel();
-                await StartAsync();
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogWarning("Receive loop was cancelled.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogCritical("An unexpected error occurred in ReceiveLoop: {exMessage}", ex.Message);
-                _cancellationTokenSource?.Cancel();
+                _logger.LogWarning(ex, "Receive loop error");
             }
         }
 
-        /// <summary>
-        /// Stops the WebSocket client, closing the connection gracefully.
-        /// </summary>
-        public async Task StopAsync()
+        private async Task KeepAliveLoopAsync(CancellationToken token)
         {
-            if (_clientWebSocket == null) return;
-
-            // Signal cancellation to any ongoing operations (like ReceiveLoopAsync)
-            _cancellationTokenSource?.Cancel();
-
-            // Attempt to close the WebSocket gracefully if it's still open
-            if (_clientWebSocket.State == WebSocketState.Open || _clientWebSocket.State == WebSocketState.CloseReceived)
+            try
             {
-                _logger.LogInformation("Closing WebSocket connection...");
-                try
+                while (!token.IsCancellationRequested &&
+                       _clientWebSocket?.State == WebSocketState.Open)
                 {
-                    // Close the output side of the connection gracefully.
-                    // The server should respond with its own close frame.
-                    await _clientWebSocket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Client initiated closure", CancellationToken.None);
-
-                    // Optionally, wait for the server's close acknowledgment.
-                    // This will block until the server sends its close frame or timeout.
-                    // This can be omitted if you don't need to wait for server acknowledgement.
-                    // await _clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client finished", CancellationToken.None);
-                }
-                catch (WebSocketException wse)
-                {
-                    _logger.LogError("Error during WebSocket close: {wse.Message}", wse.Message);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogCritical(ex, "An unexpected error occurred during WebSocket close: {ex.Message}", ex.Message);
+                    await Task.Delay(TimeSpan.FromSeconds(15), token);
+                    var ping = Encoding.UTF8.GetBytes("ping");
+                    await _clientWebSocket.SendAsync(ping, WebSocketMessageType.Text, true, token);
+                    _logger.LogDebug("Sent keep-alive ping");
                 }
             }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Keep-alive failed");
+            }
+        }
 
-            // Dispose the ClientWebSocket and CancellationTokenSource to release resources.
-            _clientWebSocket.Dispose();
-            _clientWebSocket = null;
-            _cancellationTokenSource?.Dispose();
-            _cancellationTokenSource = null;
-            _running = false;
+        // ---------------------------------------------------------------------
+        // Disposal
+        // ---------------------------------------------------------------------
 
-            _logger.LogInformation("WebSocket client resources released.");
+        public void Dispose()
+        {
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        protected async ValueTask DisposeAsyncCore()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            try
+            {
+                _cts?.Cancel();
+
+                if (_clientWebSocket != null &&
+                    (_clientWebSocket.State == WebSocketState.Open ||
+                     _clientWebSocket.State == WebSocketState.CloseReceived))
+                {
+                    await _clientWebSocket.CloseAsync(
+                        WebSocketCloseStatus.NormalClosure,
+                        "Application shutting down",
+                        CancellationToken.None);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error during DisposeAsync");
+            }
+            finally
+            {
+                _cts?.Dispose();
+                _clientWebSocket?.Dispose();
+
+                if (_runLoopTask != null)
+                    await Task.WhenAny(_runLoopTask, Task.Delay(1000)); // wait briefly
+            }
+
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
         }
     }
 }

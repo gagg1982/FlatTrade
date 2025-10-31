@@ -9,6 +9,7 @@ namespace StrategyEngine.Strategies
 {
     internal abstract class AbstractBaseStrategy<T> : IStrategy
     {
+        private bool _disposed = false;
         protected ILoggerFactory _loggerFactory;
         protected ILogger<T> _logger;
         protected abstract string Name { get; }
@@ -92,5 +93,31 @@ namespace StrategyEngine.Strategies
         protected virtual Task<StrategySignal?> ProcessInternal(StrategyOnTradeSnapshot input) => Task.FromResult<StrategySignal?>(default);
         protected virtual Task<StrategySignal?> ProcessInternal(StrategyOnQuoteSnapshot input) => Task.FromResult<StrategySignal?>(default);
         protected virtual Task<StrategySignal?> ProcessInternal(StrategyOnTouchLineSnapshot input) => Task.FromResult<StrategySignal?>(default);
+
+
+        public void Dispose()
+        {
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        private async ValueTask DisposeAsyncCore()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            // Dispose async resources             
+            
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            await Task.FromResult<ValueTask>(default);
+        }
     }
 }
