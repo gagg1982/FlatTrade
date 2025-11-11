@@ -2,8 +2,9 @@
 
 namespace StrategyEngine.RMS
 {
-    public interface IRMS
+    public interface IRms
     {
-        public Task<bool> IsValidationSucceeded(StrategySignal signal);
+        public Task OnUpdate(object? obj);
+        public Task<bool> IsValidationSucceeded(StrategySignal signal);        
     }
 }

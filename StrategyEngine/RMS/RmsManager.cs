@@ -1,22 +1,56 @@
-﻿using StrategyEngine.Model;
+﻿using FlatTrade;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using StrategyEngine.Model;
+using StrategyEngine.OrderProcessors;
 using System.Collections.Concurrent;
 
 namespace StrategyEngine.RMS
 {
-    public class RmsManager : IRMS
+    internal class RmsManager(IConfiguration config, Api api, IOrderProcessor orderProcessor, ILoggerFactory loggerFactory)
+        : AbstractRms<RmsManager>(config, api, orderProcessor, loggerFactory), IAsyncDisposable, IDisposable
     {
         private bool Enabled { get; }
-        private ConcurrentDictionary<IRMS, bool> Rules { get; } = [];
+        private bool _disposed = false;
 
-        public IRMS Register(IRMS rule) { Rules.AddOrUpdate(rule, true, (_, _) => true); return this; }
+        private ConcurrentDictionary<IRms, bool> Rules { get; } = [];
 
-        public IRMS UnRegister(IRMS rule) { Rules.Remove(rule, out bool _); return this; }
+        protected override string Name => $"{GetType().Name}_RmsExecutor";
+        
+        public virtual void Dispose()
+        {
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
+        }
+
+        public virtual async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        private async ValueTask DisposeAsyncCore()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            // Dispose async resources             
+
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            await Task.FromResult<ValueTask>(default);
+        }
+
+        public IRms Register(IRms rule) { Rules.AddOrUpdate(rule, true, (_, _) => true); return this; }
+
+        public IRms UnRegister(IRms rule) { Rules.Remove(rule, out bool _); return this; }
 
         public int Count() => Rules.Count;
 
-        public IRMS Clear() { Rules.Clear(); return this;}
+        public IRms Clear() { Rules.Clear(); return this;}
 
-        public async Task<bool> IsValidationSucceeded(StrategySignal signal)
+        public override async Task<bool> IsValidationSucceeded(StrategySignal signal)
         {
             if (!Enabled)
                 return !Enabled;

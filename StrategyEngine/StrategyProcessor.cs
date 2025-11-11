@@ -4,8 +4,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.BrokerData;
 using StrategyEngine.Model;
+using StrategyEngine.OrderProcessors;
+using StrategyEngine.RMS;
 using StrategyEngine.Strategies;
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace StrategyEngine
@@ -19,22 +20,34 @@ namespace StrategyEngine
 
         private readonly ContextAccessor _contextAccessor;
         private readonly IStrategy _strategy;
-
+        private readonly IOrderProcessor _orderProcessor;
+        private readonly IRms _rms;
+        
         private List<Task> _tasks = [];
-        internal StrategyProcessor(IConfiguration config, Api api, IStrategy strategy, ILoggerFactory loggerFactory)
+        internal StrategyProcessor(IConfiguration config,
+                                   Api api, 
+                                   IRms rms,
+                                   IStrategy strategy,
+                                   IOrderProcessor orderProcessor,
+                                   ILoggerFactory loggerFactory)
         {
             _api = api;
             _strategy = strategy;
+            _orderProcessor = orderProcessor;
+            _rms = rms;
             _loggerFactory = loggerFactory ?? new LoggerFactory();
             _logger = _loggerFactory.CreateLogger<StrategyProcessor>();
 
             _logger.LogInformation("[Strategy] Initializing {startegyProcessor}", nameof(StrategyProcessor));
 
             List<SelectedSymbol> selectSymbolsFortrading = [
-                new SelectedSymbol() { Exchange = Exchange.NSE, Token = 9552, TradingSymbol ="RVNL-EQ" }];
+                /*new SelectedSymbol() { Exchange = Exchange.NSE, Token = 9552, TradingSymbol ="RVNL-EQ" }*/];
 
+            //important to attach to handler before creation of object
+            //so that as soon as object is created and subscription started, events will not miss
+            ContextAccessor.RegisterHandler([Process, _rms.OnUpdate, _orderProcessor.OnUpdate]);
 
-            _contextAccessor = new(config, _api, _strategy.Process, _loggerFactory);
+            _contextAccessor = new(config, _api, _loggerFactory);
             _logger.LogInformation("[1] Initializing Securities...");
             _tasks.Add(_contextAccessor.Security.UpdateSecurityInfo(selectSymbolsFortrading));
 
@@ -66,6 +79,58 @@ namespace StrategyEngine
             ////===============================================================================================
         }
 
+        private bool IsInvalid(StrategySignal? signal)
+        {
+            if (signal is null || signal!.OutputDecision.OrderEventType == OrderEventType.None)
+                return false;
+
+            if( (signal!.OutputDecision.OrderEventType == OrderEventType.CreateOrder && signal!.OutputDecision.CreateOrder is null) ||
+                (signal!.OutputDecision.OrderEventType == OrderEventType.ModifyOrder && signal!.OutputDecision.ModifyOrder is null) ||
+                (signal!.OutputDecision.OrderEventType == OrderEventType.CancelOrder && signal!.OutputDecision.CancelOrder is null))            
+                return true;
+
+            return false;
+        }
+        public async Task Process(object? obj)
+        {
+            if (obj is null)
+            {
+                _logger.LogWarning("{0}: received null object to process. ",GetType().Name);
+                return;
+            }
+            try
+            {
+                var signal = await _strategy.Process(obj);                
+                if (IsInvalid(signal))
+                    return;
+
+                if (!await _rms.IsValidationSucceeded(signal!))
+                    return;
+
+                return;
+                switch (signal.OutputDecision.OrderEventType)
+                {
+                    case OrderEventType.CreateOrder:
+                        _tasks.Add(_orderProcessor.CreateOrder(signal.OutputDecision.CreateOrder!));                        
+                        break;
+                    case OrderEventType.ModifyOrder:
+                        _tasks.Add(_orderProcessor.ModifyOrder(signal.OutputDecision.ModifyOrder));
+                        break;
+                    case OrderEventType.CancelOrder:
+                        _tasks.Add(_orderProcessor.CancelOrder(signal.OutputDecision.CancelOrder));
+                        break;
+                    default:
+                        _logger.LogError("{0}: StrategyName:[{1}] Invalid signal. Received OrderEventType [{2}] but order details missing.", GetType().Name, signal.StrategyName, signal.OutputDecision.OrderEventType);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogInformation("{0}: Error: {1}", GetType().Name, ex);
+            }
+            return;
+        }
+
         public void Dispose()
         {
             DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
@@ -85,6 +150,7 @@ namespace StrategyEngine
 
             _disposed = true;
 
+            ContextAccessor.UnRegisterHandler([Process, _rms.OnUpdate, _orderProcessor.OnUpdate]);
             await _contextAccessor.DisposeAsync();
             await Task.WhenAll(_tasks);
             _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);

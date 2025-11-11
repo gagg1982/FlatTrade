@@ -157,7 +157,7 @@ namespace DailyRunner
 
         private async Task SubscribeCurrentDateOHLCVCsv_1440()
         {            
-            int chunkSize = 10;
+            int chunkSize = 50;
             int cnt = 0;
             var selection = _placeHolderForExchangeTokenSymbolTuple.Select(t => new KeyValuePair<Exchange, long>(t.Item1, t.Item2));
             _api.Subscription.QuoteSubscription.OnSubscriptionEvents = OnQuoteUpdates;

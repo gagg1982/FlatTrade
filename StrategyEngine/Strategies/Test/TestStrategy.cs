@@ -3,53 +3,22 @@ using FlatTrade.Common.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
-using StrategyEngine.OrderProcessors;
-using StrategyEngine.RMS;
 using System.Collections.Concurrent;
+using TicTacTec.TA.Library;
 
 namespace StrategyEngine.Strategies.Test
 {
-    internal class TestStrategy(IConfiguration config, Api api, IRMS rmsManager, IOrderProcessor orderProcessor, ILoggerFactory loggerFactory) 
-        : AbstractBaseStrategy<TestStrategy>(config, api, rmsManager, orderProcessor, loggerFactory)
+    internal class TestStrategy(IConfiguration config, Api api, ILoggerFactory loggerFactory) 
+        : AbstractStrategy<TestStrategy>(config, api, loggerFactory)
     {
+        private bool _disposed = false;
         protected override string Name => $"{GetType().Name}";
 
         private readonly ConcurrentDictionary<(ChartInterval, string), StreamWriter> _intervalWriter = [];
-        
-        protected override Task<StrategySignal?> ProcessInternal(StrategyOnScripSnapshot input)
-        {
-            return Task.FromResult<StrategySignal?>(default);
-        }
-
-        protected override Task<StrategySignal?> ProcessInternal(StrategyOnHoldingSnapshot input)
-        {
-            return Task.FromResult<StrategySignal?>(default);
-        }
-        protected override Task<StrategySignal?> ProcessInternal(StrategyOnOrderSnapshot input)
-        {
-            return Task.FromResult<StrategySignal?>(default);
-        }
-        protected override Task<StrategySignal?> ProcessInternal(StrategyOnPositionSnapshot input)
-        {
-            return Task.FromResult<StrategySignal?>(default);
-        }
-
-        protected override Task<StrategySignal?> ProcessInternal(StrategyOnTradeSnapshot input)
-        {
-            return Task.FromResult<StrategySignal?>(default);
-        }
-
-        protected override Task<StrategySignal?> ProcessInternal(StrategyOnQuoteSnapshot input)
-        {
-            return Task.FromResult<StrategySignal?>(default);
-        }
-
-        protected override Task<StrategySignal?> ProcessInternal(StrategyOnTouchLineSnapshot input)
-        {
-            return Task.FromResult<StrategySignal?>(default);
-        }
+                
         protected override Task<StrategySignal?> ProcessInternal(StrategyOnCandleSnapshot input)
         {
+
             var intervalWriter = _intervalWriter.GetOrAdd((input.ChartInterval,input.TradingSymbol), key =>
             {
                 var fileName = $"..//..//..//{(int)key.Item1}_{key.Item2}_candles.csv";
@@ -69,27 +38,24 @@ namespace StrategyEngine.Strategies.Test
             return Task.FromResult<StrategySignal?>(default);
         }
         
-        protected virtual void Dispose(bool disposing)
+        public virtual void Dispose()
         {
-            DisposeAsyncCore(disposing).AsTask().GetAwaiter().GetResult(); // Safe sync fallback
-            base.Dispose();
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
             GC.SuppressFinalize(this);
         }
-
         
-        protected virtual async ValueTask DisposeAsync(bool disposing)
+        public virtual async ValueTask DisposeAsync()
         {
-            await DisposeAsyncCore(disposing);
-            await base.DisposeAsync();
+            await DisposeAsyncCore();
             GC.SuppressFinalize(this);
         }
 
-        private async ValueTask DisposeAsyncCore(bool disposing)
+        private async ValueTask DisposeAsyncCore()
         {
-            if (disposing)
+            if (_disposed)
                 return;
 
-            disposing = true;
+            _disposed = true;
 
             // Dispose async resources
             foreach(var (key,writer) in _intervalWriter)

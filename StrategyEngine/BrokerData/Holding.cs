@@ -14,15 +14,14 @@ namespace StrategyEngine.BrokerData
         private readonly Api _api;
         private readonly ILogger _logger;
         private readonly ContextAccessor _contextAccessor;
-        private event OnUpdate? _onHoldings;
+        public static event OnUpdate? OnHoldings;
 
-        public Holding(IConfiguration config, ContextAccessor contextAccessor, Api api, OnUpdate? onUpdate, ILoggerFactory loggerFactory)
+        public Holding(IConfiguration config, ContextAccessor contextAccessor, Api api, ILoggerFactory loggerFactory)
         {
             _api = api;
             _logger = loggerFactory.CreateLogger<Holding>();
             _config = config;
             _contextAccessor = contextAccessor;
-            _onHoldings += onUpdate;
         }
 
 
@@ -39,7 +38,7 @@ namespace StrategyEngine.BrokerData
             }
             else
             {
-                _logger.LogInformation("Fetched {holdingCount} holdings.", holdings.Count());
+                _logger.LogInformation("Fetched {holdingCount:} holdings.", holdings.Count());
             }
             return holdings ?? [];
         }
@@ -61,8 +60,8 @@ namespace StrategyEngine.BrokerData
                     details!.HoldingInfo.AddOrUpdate(exch.Exchange, holding, (key, existingValue) => holding);
                 }
 
-                if (_onHoldings is not null)
-                    await _onHoldings(new StrategyOnHoldingSnapshot(holding));
+                if (OnHoldings is not null)
+                    await OnHoldings.Invoke(new StrategyOnHoldingSnapshot(holding));
             }
         }
     }

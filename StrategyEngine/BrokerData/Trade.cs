@@ -15,15 +15,14 @@ namespace StrategyEngine.BrokerData
         private readonly ILogger _logger;
         private readonly ContextAccessor _contextAccessor;
 
-        private event OnUpdate? _onTrades;
+        public static event OnUpdate? OnTrades;
 
-        public Trade(IConfiguration config, ContextAccessor contextAccessor, Api api, OnUpdate? onUpdate, ILoggerFactory loggerFactory)
+        public Trade(IConfiguration config, ContextAccessor contextAccessor, Api api, ILoggerFactory loggerFactory)
         {
             _api = api;
             _logger = loggerFactory.CreateLogger<Trade>();
             _config = config;
             _contextAccessor = contextAccessor;
-            _onTrades += onUpdate;
         }
 
         private async Task<IEnumerable<TradeBookResponse>> GetTradeDetailsFromServerAsync()
@@ -64,18 +63,11 @@ namespace StrategyEngine.BrokerData
                 });   //always replace            
 
 
-                if (_onTrades is not null &&
+                if (OnTrades is not null &&
                     (tradingSymbol is null || tradingSymbol == trade.TradingSymbol) &&
                     (exchange is null || exchange == trade.Exchange) &&
                     (norenOrderNumber is null || norenOrderNumber == trade.NorenOrderNumber))
-                    await _onTrades(new StrategyOnTradeSnapshot
-                    {
-                        Exchange = trade.Exchange,
-                        TradingSymbol = trade.TradingSymbol,
-                        Fillid = trade.FillId,
-                        NorenOrderNumber = trade.NorenOrderNumber,
-                        ExchangeOrderNumber = trade.ExchangeOrderNumber
-                    });
+                    await OnTrades.Invoke(new StrategyOnTradeSnapshot(trade));                    
             }
         }
     }

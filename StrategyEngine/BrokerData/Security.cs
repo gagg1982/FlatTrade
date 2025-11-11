@@ -16,15 +16,14 @@ namespace StrategyEngine.BrokerData
         private readonly ILogger _logger;
         private readonly ContextAccessor _contextAccessor;
 
-        private event OnUpdate? _onSecurities;
+        public static event OnUpdate? OnSecurities;
 
-        public Security(IConfiguration config, ContextAccessor contextAccessor, Api api, OnUpdate? onUpdate, ILoggerFactory loggerFactory)
+        public Security(IConfiguration config, ContextAccessor contextAccessor, Api api, ILoggerFactory loggerFactory)
         {
             _api = api;
             _logger = loggerFactory.CreateLogger<Security>();
             _config = config;
             _contextAccessor = contextAccessor;
-            _onSecurities += onUpdate;
         }
 
         private static async Task<IEnumerable<LinkedScrip>> GetLinkedScripDetailsFromServerAsync(Api api, ILogger logger, IEnumerable<KeyValuePair<Exchange, long>> exchangeToken)
@@ -115,8 +114,8 @@ namespace StrategyEngine.BrokerData
                 var details = GlobalDataSet.Data.GetOrAdd(scrip.TradingSymbol, _ => new());
                 var updatedScrip = details!.SecurityInfo.AddOrUpdate(scrip.Exchange, scrip, (_, _) => { return scrip; });
 
-                if (_onSecurities is not null)
-                    await _onSecurities(new StrategyOnScripSnapshot(updatedScrip));
+                if (OnSecurities is not null)
+                    await OnSecurities.Invoke(new StrategyOnScripSnapshot(updatedScrip));
             }
         }
     }

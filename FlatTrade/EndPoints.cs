@@ -17,9 +17,9 @@
         public static string CancelGttOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/CancelGTTOrder";
         public static string PendingGttOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/GetPendingGTTOrder ";
         public static string EnabledGttsUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/GetEnabledGTTs";
-        public static string PlaceCOOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/PlaceOCOOrder";
-        public static string ModifyCOOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/ModifyOCOOrder";
-        public static string CancelCOOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/CancelOCOOrder";
+        //public static string PlaceCOOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/PlaceOCOOrder";
+        //public static string ModifyCOOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/ModifyOCOOrder";
+        //public static string CancelCOOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/CancelOCOOrder";
         public static string PlaceOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/PlaceOrder";
         public static string ModifyOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/ModifyOrder";
         public static string CancelOrderUrl { get; } = "https://piconnect.flattrade.in/PiConnectTP/CancelOrder";

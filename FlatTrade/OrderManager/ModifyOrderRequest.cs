@@ -43,10 +43,14 @@ namespace FlatTrade.OrderManager
 
         [JsonProperty("blprc")]
         [JsonConverter(typeof(DecimalAsStringConverter))]
-        public decimal BookLossProfit { get; set; }
+        public decimal BookLossPrice { get; set; }
 
         [JsonProperty("trailprc")]
         [JsonConverter(typeof(DecimalAsStringConverter))]
         public decimal TrailingPrice { get; set; }
+
+        [JsonProperty("mkt_protection")]
+        [JsonConverter(typeof(DecimalAsStringConverter))]
+        public decimal MarketProtectionPercentage { get; set; } = 0.0m;
     }
 }

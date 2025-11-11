@@ -7,7 +7,13 @@ namespace DailyRunner.Helpers
     {
         public async static Task WhenAllSafe(params Task?[] tasks)
         {
-            await Task.WhenAll(tasks.Where(t => t != null)!);
+            if (tasks == null)
+                return; // or throw, depending on logic
+
+            var validTasks = tasks.Where(t => t != null).ToArray();
+
+            if (validTasks.Length > 0)
+                await Task.WhenAll(validTasks!);
         }
         
         public static DataTable ToDataTable(IEnumerable<Dictionary<string, object?>> dictionaries)

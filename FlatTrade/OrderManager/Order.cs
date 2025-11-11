@@ -165,65 +165,66 @@ namespace FlatTrade.OrderManager
             return await _httpClient.PostMessageAsync<EnabledGTTsResponse>(EndPoints.EnabledGttsUrl, requestParams);
         }      
 
-      //[Throttle]
+      ////[Throttle]
+      //  /// <summary>
+      //  /// 
+      //  /// </summary>
+      //  /// <param name="modifyOcoOrderRequest"></param>
+      //  /// <returns></returns>
+      //  public async virtual Task<(ModifyOcoOrderResponse?, string)> ModifyOCOOrderAsync(ModifyOcoOrderRequest modifyOcoOrderRequest)
+      //  {
+      //      var (accessTokenResult, eMsg) = await _authentication.GetAccessTokenAsync();
+      //      if (accessTokenResult is null)
+      //      {
+      //          eMsg = $"Cannot modify OCO order. {eMsg}";
+      //          return (default, eMsg);
+      //      }
+
+      //      modifyOcoOrderRequest.UserId = accessTokenResult.ClientCode;
+      //      modifyOcoOrderRequest.AccountId = accessTokenResult.ClientCode; // Ensure AccountId is set from access token
+
+      //      modifyOcoOrderRequest.PlaceOrderParameters.ForEach(param =>
+      //      {
+      //          param.UserId = accessTokenResult.ClientCode;
+      //          param.AccountId = accessTokenResult.ClientCode; // Ensure AccountId is set from access token
+      //      });
+
+      //      var serializedModifyOcoOrderRequest = JsonConvert.SerializeObject(modifyOcoOrderRequest);
+
+      //      string requestParams = $"jData={serializedModifyOcoOrderRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
+      //      return await _httpClient.PostMessageAsync<ModifyOcoOrderResponse>(EndPoints.ModifyCOOrderUrl, requestParams);
+
+      //  }
+
+        //[Throttle]
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="modifyOcoOrderRequest"></param>
-        /// <returns></returns>
-        public async virtual Task<(ModifyOcoOrderResponse?, string)> ModifyOCOOrderAsync(ModifyOcoOrderRequest modifyOcoOrderRequest)
-        {
-            var (accessTokenResult, eMsg) = await _authentication.GetAccessTokenAsync();
-            if (accessTokenResult is null)
-            {
-                eMsg = $"Cannot modify OCO order. {eMsg}";
-                return (default, eMsg);
-            }
+        /// <param name = "alertId" ></ param >
+        /// < returns ></ returns >
+        //public async virtual Task<(CancelOcoOrderResponse?, string)> CancelOCOOrderAsync(long alertId)
+        //{
+        //    var (accessTokenResult, eMsg) = await _authentication.GetAccessTokenAsync();
+        //    if (accessTokenResult is null)
+        //    {
+        //        eMsg = $"Cannot cancel OCO order. {eMsg}";
+        //        return (default, eMsg);
+        //    }
 
-            modifyOcoOrderRequest.UserId = accessTokenResult.ClientCode;
-            modifyOcoOrderRequest.AccountId = accessTokenResult.ClientCode; // Ensure AccountId is set from access token
+        //    var cancelOcoOrderRequest = new CancelOcoOrderRequest
+        //    {
+        //        UserId = accessTokenResult.ClientCode, // Ensure UserId is set from access token
+        //        AlertId = alertId // Set the AlertId for cancellation   
+        //    };
 
-            modifyOcoOrderRequest.PlaceOrderParameters.ForEach(param =>
-            {
-                param.UserId = accessTokenResult.ClientCode;
-                param.AccountId = accessTokenResult.ClientCode; // Ensure AccountId is set from access token
-            });
+        //    var serializedCancelOcoOrderRequest = JsonConvert.SerializeObject(cancelOcoOrderRequest);
 
-            var serializedModifyOcoOrderRequest = JsonConvert.SerializeObject(modifyOcoOrderRequest);
+        //    string requestParams = $"jData={serializedCancelOcoOrderRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
+        //    return await _httpClient.PostMessageAsync<CancelOcoOrderResponse>(EndPoints.CancelCOOrderUrl, requestParams);
+        //}
 
-            string requestParams = $"jData={serializedModifyOcoOrderRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<ModifyOcoOrderResponse>(EndPoints.ModifyCOOrderUrl, requestParams);
-
-        }
-
-      //[Throttle]
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="alertId"></param>
-        /// <returns></returns>
-        public async virtual Task<(CancelOcoOrderResponse?, string)> CancelOCOOrderAsync(long alertId)
-        {
-            var (accessTokenResult, eMsg) = await _authentication.GetAccessTokenAsync();
-            if (accessTokenResult is null)
-            {
-                eMsg = $"Cannot cancel OCO order. {eMsg}";
-                return (default, eMsg);
-            }
-
-            var cancelOcoOrderRequest = new CancelOcoOrderRequest
-            {
-                UserId = accessTokenResult.ClientCode, // Ensure UserId is set from access token
-                AlertId = alertId // Set the AlertId for cancellation   
-            };
-
-            var serializedCancelOcoOrderRequest = JsonConvert.SerializeObject(cancelOcoOrderRequest);
-
-            string requestParams = $"jData={serializedCancelOcoOrderRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<CancelOcoOrderResponse>(EndPoints.CancelCOOrderUrl, requestParams);
-        }
-
-      //[Throttle]
+        //[Throttle]
+        
         /// <summary>
         /// 
         /// </summary>
@@ -345,28 +346,28 @@ namespace FlatTrade.OrderManager
             return await _httpClient.PostMessageAsync<BasketMarginResponse>(EndPoints.BasketMarginUrl, requestParams);
         }        
 
-        //[Throttle]
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="placeCOOrderRequest"></param>
-        /// <returns></returns>
-        public async virtual Task<(PlaceCOOrderResponse?, string)> PlaceCOOrderAsync(PlaceCOOrderRequest placeCOOrderRequest)
-        {
-            var (accessTokenResult, eMsg) = await _authentication.GetAccessTokenAsync();
-            if (accessTokenResult is null)
-            {
-                eMsg = $"Cannot place order. {eMsg}";
-                return (default, eMsg);
-            }
+        ////[Throttle]
+        ///// <summary>
+        ///// 
+        ///// </summary>
+        ///// <param name="placeCOOrderRequest"></param>
+        ///// <returns></returns>
+        //public async virtual Task<(PlaceCOOrderResponse?, string)> PlaceCOOrderAsync(PlaceCOOrderRequest placeCOOrderRequest)
+        //{
+        //    var (accessTokenResult, eMsg) = await _authentication.GetAccessTokenAsync();
+        //    if (accessTokenResult is null)
+        //    {
+        //        eMsg = $"Cannot place order. {eMsg}";
+        //        return (default, eMsg);
+        //    }
 
-            placeCOOrderRequest.UserId = accessTokenResult.ClientCode; // Ensure UserId is set from access token
-            placeCOOrderRequest.AccountId = accessTokenResult.ClientCode;
-            var serializedPlaceCOOrder = JsonConvert.SerializeObject(placeCOOrderRequest);
+        //    placeCOOrderRequest.UserId = accessTokenResult.ClientCode; // Ensure UserId is set from access token
+        //    placeCOOrderRequest.AccountId = accessTokenResult.ClientCode;
+        //    var serializedPlaceCOOrder = JsonConvert.SerializeObject(placeCOOrderRequest);
 
-            string requestParams = $"jData={serializedPlaceCOOrder}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<PlaceCOOrderResponse>(EndPoints.PlaceCOOrderUrl, requestParams);
-        }
+        //    string requestParams = $"jData={serializedPlaceCOOrder}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
+        //    return await _httpClient.PostMessageAsync<PlaceCOOrderResponse>(EndPoints.PlaceCOOrderUrl, requestParams);
+        //}
 
         //[Throttle]
         /// <summary>

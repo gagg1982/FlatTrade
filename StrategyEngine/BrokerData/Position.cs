@@ -15,15 +15,14 @@ namespace StrategyEngine.BrokerData
         private readonly ILogger<Position> _logger;
         private readonly ContextAccessor _contextAccessor;
 
-        private event OnUpdate? _onPositons;
+        public static event OnUpdate? OnPositons;
 
-        public Position(IConfiguration config, ContextAccessor contextAccessor, Api api, OnUpdate? onUpdate, ILoggerFactory loggerFactory)
+        public Position(IConfiguration config, ContextAccessor contextAccessor, Api api, ILoggerFactory loggerFactory)
         {
             _api = api;
             _logger = loggerFactory.CreateLogger<Position>();
             _config = config;
             _contextAccessor = contextAccessor;
-            _onPositons += onUpdate;
         }
 
         private async Task<IEnumerable<PositionBookResponse>> GetPositionsFromServerAsync()
@@ -65,15 +64,10 @@ namespace StrategyEngine.BrokerData
                     details!.OpenPositions.AddOrUpdate(position.ProductType, position, (_, _) => position); //always update to latest
                 }
 
-                if (_onPositons is not null &&
+                if (OnPositons is not null &&
                     (exchange is null || position.Exchange == exchange) &&
                     (tradingSymbol is null || position.TradingSymbol == tradingSymbol))
-                    await _onPositons(new StrategyOnPositionSnapshot
-                    {
-                        Exchange = position.Exchange,
-                        Token = position.Token,
-                        TradingSymbol = position.TradingSymbol
-                    });
+                    await OnPositons.Invoke(new StrategyOnPositionSnapshot(position.TradingSymbol, position.Token, position.Exchange));
             }
         }
     }

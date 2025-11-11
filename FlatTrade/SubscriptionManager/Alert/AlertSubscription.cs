@@ -1,4 +1,6 @@
-﻿using FlatTrade.SubscriptionManager.Order;
+﻿using FlatTrade.Common.Helpers;
+using FlatTrade.SubscriptionManager.Order;
+using FlatTrade.SubscriptionManager.Quote;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -36,6 +38,7 @@ namespace FlatTrade.SubscriptionManager.Alert
                         }
                         break;
                     case SubscriptionType.SubscribeAlertMessages:
+                        RestHttpClientExtension.CheckJsonAgainstModel<OrderSubscriptionRequestAck>(subscriptionEvent.RawMessage, false);
                         if (_onSubscriptionEvents != null)
                             await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<OrderSubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;

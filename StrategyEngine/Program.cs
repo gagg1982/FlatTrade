@@ -6,18 +6,19 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using StrategyEngine;
-using StrategyEngine.OrderProcessors;
+using StrategyEngine.OrderProcessors.MultiLegOrder;
 using StrategyEngine.RMS;
-using StrategyEngine.Strategies;
 using StrategyEngine.Strategies.Test;
 
 Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
-var configFile = FileHelper.GetConfigFile(args.Length == 1 ? args[0] : "");
+var appConfigFile = FileHelper.GetConfigFile(args.Length == 1 ? args[0] : "","AppConfig.json");
+var rmsConfigFile = FileHelper.GetConfigFile(args.Length == 1 ? args[0] : "", "RmsConfig.json");
 
 IConfiguration config = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory) // Use AppContext.BaseDirectory for console apps
-            .AddJsonFile(configFile, optional: false, reloadOnChange: true)
+            .AddJsonFile(appConfigFile, optional: false, reloadOnChange: true)
+            .AddJsonFile(rmsConfigFile, optional: false, reloadOnChange: true)
             .Build();
 
 Log.Logger = new LoggerConfiguration()
@@ -40,17 +41,19 @@ Api api = new(config["Api:Key"] ?? string.Empty,
               loggerFactory,
               throttler);
 
-var rms = new RmsManager();
-    rms.Register(new MaxLossLimitPerDay());
-    rms.Register(new MaxLossLimitPerTrade());
-    rms.Register(new SufficientBalance(api, config, loggerFactory));
-
 // For Backtesting, just implement IOrderProcessor interface and u r done. 
 // No need to change the strategy class.
-var orderProcessor = new OrderProcessor(api, loggerFactory);
+var orderProcessor = new MultiLegOrderProcessor(config, api, loggerFactory);
 
-var strategy = new TestStrategy(config, api, rms, orderProcessor, loggerFactory);
-StrategyProcessor strategyProcessor = new(config, api, strategy, loggerFactory);
+var rms = new RmsManager(config, api, orderProcessor, loggerFactory);
+rms.Register(new MaxQuantityPerOrder(config, api, orderProcessor, loggerFactory));
+//rms.Register(new MaxLossPerDay(config, api, orderProcessor, loggerFactory));
+//rms.Register(new MaxLossPerOrder(config, api, orderProcessor, loggerFactory));
+rms.Register(new SufficientBalance(config, api, orderProcessor, loggerFactory));
+
+
+var strategy = new TestStrategy(config, api, loggerFactory);
+StrategyProcessor strategyProcessor = new(config, api, rms, strategy, orderProcessor, loggerFactory);
 
 Console.ReadKey();
 

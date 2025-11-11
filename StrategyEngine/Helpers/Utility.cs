@@ -54,7 +54,7 @@ namespace StrategyEngine.Helpers
                     Volume = group.Sum(c => (long)c.Volume)
                 });
 
-            return new(grouped);
+            return [..grouped];
         }
     }
 }

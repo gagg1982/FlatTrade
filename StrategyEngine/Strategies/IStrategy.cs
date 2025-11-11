@@ -1,9 +1,11 @@
-﻿namespace StrategyEngine.Strategies
+﻿using StrategyEngine.Model;
+
+namespace StrategyEngine.Strategies
 {
     internal delegate Task OnUpdate(object obj);
 
-    internal interface IStrategy: IDisposable, IAsyncDisposable
+    internal interface IStrategy
     {
-        Task Process(object? obj);
+        Task<StrategySignal?> Process(object? obj);
     }
 }

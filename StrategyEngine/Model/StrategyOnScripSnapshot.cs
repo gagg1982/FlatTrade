@@ -1,6 +1,4 @@
 ﻿namespace StrategyEngine.Model
 {
-    internal class StrategyOnScripSnapshot(ScripInfo obj) : ScripInfo(obj)
-    {
-    }
+    internal record StrategyOnScripSnapshot(ScripInfo obj);
 }

@@ -38,7 +38,8 @@
                 Low = this.Low,
                 Close = this.Close,
                 Volume = this.Volume,
-                AccumulatedVolume = this.AccumulatedVolume
+                AccumulatedVolume = this.AccumulatedVolume,
+                PseudoFlag = this.PseudoFlag
             };
 
         }

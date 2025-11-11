@@ -1,4 +1,5 @@
-﻿using FlatTrade.Common.Types.Base;
+﻿using FlatTrade.Common.Helpers;
+using FlatTrade.Common.Types.Base;
 using FlatTrade.SubscriptionManager.Helper;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -75,14 +76,17 @@ namespace FlatTrade.SubscriptionManager.TouchLine
                         }
                         break;
                     case SubscriptionType.SubscribeTouchLineUpdates:
+                        RestHttpClientExtension.CheckJsonAgainstModel<TouchLineSubscriptionUpdates>(subscriptionEvent.RawMessage, false);
                         if (OnSubscriptionEvents != null)
                             await OnSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<TouchLineSubscriptionUpdates>(subscriptionEvent.RawMessage));
                         break;
                     case SubscriptionType.SubscribeTouchLineAck:
+                        RestHttpClientExtension.CheckJsonAgainstModel<TouchLineSubscriptionRequestAck>(subscriptionEvent.RawMessage, false);
                         if (OnSubscriptionEvents != null)
                             await OnSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<TouchLineSubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;
                     case SubscriptionType.UnsubscribeTouchLineAck:
+                        RestHttpClientExtension.CheckJsonAgainstModel<TouchLineUnsubscriptionRequestAck>(subscriptionEvent.RawMessage, false);
                         if (OnSubscriptionEvents != null)
                             await OnSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<TouchLineUnsubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;

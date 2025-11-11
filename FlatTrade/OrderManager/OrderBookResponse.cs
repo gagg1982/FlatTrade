@@ -46,10 +46,10 @@ namespace FlatTrade.OrderManager
         public decimal RemainingOriginalPriceFromModify { get; set; }
 
         [JsonProperty("rtrgprc")]
-        public decimal RTriggerPrice { get; set; }
+        public decimal RemainingTriggerPrice { get; set; }
 
         [JsonProperty("rqty")]
-        public decimal RQuantity { get; set; }
+        public decimal RemainingQuantity { get; set; }
 
         [JsonProperty("rorgqty")]
         public long RemaningOriginalQuantityFromModify { get; set; } // used in modify

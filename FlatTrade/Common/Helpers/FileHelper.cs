@@ -18,11 +18,11 @@
                 return false;
             }
         }
-        public static string GetConfigFile(string filePath)
+        public static string GetConfigFile(string filePath, string defaultFile)
         {
             string configFileName = filePath.Length > 0 && !string.IsNullOrWhiteSpace(filePath)
             ? filePath
-            : "AppConfig.json";
+            : string.IsNullOrEmpty(defaultFile) ? "AppConfig.json": defaultFile;
 
             // Check if the specified file exists before trying to load it.
             // We combine the file name with the application's base directory.

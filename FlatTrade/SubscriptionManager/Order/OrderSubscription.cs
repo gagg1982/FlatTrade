@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FlatTrade.Common.Helpers;
+using FlatTrade.SubscriptionManager.TouchLine;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace FlatTrade.SubscriptionManager.Order
@@ -86,14 +88,17 @@ namespace FlatTrade.SubscriptionManager.Order
                         }
                         break;
                     case SubscriptionType.SubscribeOrderUpdate:
+                        RestHttpClientExtension.CheckJsonAgainstModel<OrderSubscriptionUpdates>(subscriptionEvent.RawMessage, false);
                         if (_onSubscriptionEvents is not null)
                             await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<OrderSubscriptionUpdates>(subscriptionEvent.RawMessage));
                         break;
                     case SubscriptionType.SubscribeOrderAck:
+                        RestHttpClientExtension.CheckJsonAgainstModel<OrderSubscriptionRequestAck>(subscriptionEvent.RawMessage, false);
                         if (_onSubscriptionEvents is not null)
                             await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<OrderSubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;
                     case SubscriptionType.UnsubscribeOrderAck:
+                        RestHttpClientExtension.CheckJsonAgainstModel<OrderUnsubscriptionRequestAck>(subscriptionEvent.RawMessage, false);
                         if (_onSubscriptionEvents is not null)
                             await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<OrderUnsubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;

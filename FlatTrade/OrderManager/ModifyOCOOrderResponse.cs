@@ -1,10 +1,10 @@
-﻿using Newtonsoft.Json;
+﻿//using Newtonsoft.Json;
 
-namespace FlatTrade.OrderManager
-{
-    public class ModifyOcoOrderResponse : BaseErrorMessageResponse
-    {
-        [JsonProperty("al_id")]
-        public long AlertId { get; set; }
-    }
-}
+//namespace FlatTrade.OrderManager
+//{
+//    public class ModifyOcoOrderResponse : BaseErrorMessageResponse
+//    {
+//        [JsonProperty("al_id")]
+//        public long AlertId { get; set; }
+//    }
+//}

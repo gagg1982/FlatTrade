@@ -2,10 +2,5 @@
 
 namespace StrategyEngine.Model
 {
-    internal class StrategyOnPositionSnapshot
-    {
-        internal required string TradingSymbol { get; set; } = string.Empty;
-        internal required long Token { get; set; }
-        internal required Exchange Exchange { get; set; }
-    }
+    internal record StrategyOnPositionSnapshot(string TradingSymbol, long Token, Exchange Exchange);
 }

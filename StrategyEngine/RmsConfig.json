@@ -1,0 +1,28 @@
+{
+    "RmsRules": [
+        {
+            "Name": "MaxQuantityPerOrder",
+            "Enabled": true,
+            "ThresholdQuantity": 100
+        },
+        {
+            "Name": "SufficientBalance",
+            "Enabled": true,
+            "InitialCashAllocation": 50000,
+            "BufferReservedFromInitialCashAllocation": 5 // in percent
+        },
+        {
+            "Name": "MaxLossPerDay",
+            "Enabled": true,
+            "ThresholdAmount": 1000,
+            "ActionOnPendingOrdersIfThresholdBreached": [ "CancelAllPendingOrders", "None" ],
+            "ActionOnOpenPositionsIfThresholdBreached": [ "ExitAllPositions", "WaitForAutoSquareOff", "None" ]
+        },
+        {
+            "Name": "MaxLossPerOrder",
+            "Enabled": false,
+            "ThresholdAmount": 100
+        }        
+    ]
+    
+}

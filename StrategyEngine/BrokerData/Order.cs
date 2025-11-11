@@ -21,14 +21,13 @@ namespace StrategyEngine.BrokerData
 
         private readonly Helpers.Queue<OrderSubscriptionUpdates> _queue;
 
-        private readonly OnUpdate? OnOrders;
-        public Order(IConfiguration config, ContextAccessor contextAccessor, Api api, OnUpdate? onOrders, ILoggerFactory loggerFactory)
+        public static event OnUpdate? OnOrders;
+        public Order(IConfiguration config, ContextAccessor contextAccessor, Api api, ILoggerFactory loggerFactory)
         {
             _api = api;
             _config = config;
             _logger = loggerFactory.CreateLogger<Order>();
             _contextAccessor = contextAccessor;
-            OnOrders = onOrders;
             _queue = new(5000, "OrderUpdateQueue", OnOrderUpdates, loggerFactory);
         }
 
@@ -98,30 +97,23 @@ namespace StrategyEngine.BrokerData
                         order.OrderStatus == OrderStatus.Rejected ||
                         order.OrderStatus == OrderStatus.AmoCancelled ||
                         order.OrderStatus == OrderStatus.Cancelled)
-                {
-                    result.Add(order);
+                {                    
                     details!.OpenOrders.Remove(order.NorenOrderNumber, out OrderInfo? _);
-                    details!.ClosedOrders.AddOrUpdate(order.NorenOrderNumber, order, (key, existingValue) => order);
+                    var updatedOrder = details!.ClosedOrders.AddOrUpdate(order.NorenOrderNumber, order, (key, existingValue) => { return order; });
+                    result.Add(updatedOrder);
                 }
                 else
                 {
-                    var ord = details!.OpenOrders.AddOrUpdate(order.NorenOrderNumber, order, (key, existingValue) => order);
+                    var updatedOrder = details!.OpenOrders.AddOrUpdate(order.NorenOrderNumber, order, (key, existingValue) => { return order; });
+                    if (order.OrderStatus == OrderStatus.Open || order.OrderStatus == OrderStatus.AmoOpen)
+                        result.Add(updatedOrder);
                 }
 
                 //sending notification only for OrderStatus =Completed,  Rejected, AmoCancelled, Cancelled
                 //Open, AmoOpen
-                if (order.OrderStatus == OrderStatus.Open || order.OrderStatus == OrderStatus.AmoOpen)
-                    result.Add(order);
-
                 if (OnOrders is not null)
-                    foreach (var ord in result)
-                        await OnOrders(new StrategyOnOrderSnapshot
-                        {
-                            Exchange = order.Exchange,
-                            OrderStatus = order.OrderStatus,
-                            NorenOrderNumber = order.NorenOrderNumber,
-                            TradingSymbol = order.TradingSymbol,
-                        });
+                    foreach (var updatedOrder in result)
+                        await OnOrders.Invoke(new StrategyOnOrderSnapshot(updatedOrder));
 
                 if (isCompleted)
                 {

@@ -17,19 +17,18 @@ namespace StrategyEngine.BrokerData
         private readonly ILogger<Quote> _logger;
         private readonly IConfiguration _config;
 
-        private readonly OnUpdate? _onQuote;
+        public static event OnUpdate? OnQuote;
         private readonly ContextAccessor _contextAccessor;
 
         private readonly Helpers.Queue<QuoteSubscriptionUpdates> _queue;
 
         private ConcurrentBag<SelectedSymbol> _subscribedSymbols = [];
-        public Quote(IConfiguration config, ContextAccessor contextAccessor, Api api, OnUpdate? onUpdate, ILoggerFactory loggerFactory)
+        public Quote(IConfiguration config, ContextAccessor contextAccessor, Api api, ILoggerFactory loggerFactory)
         {
             _api = api;
             _config = config;
             _logger = loggerFactory.CreateLogger<Quote>();
             _contextAccessor = contextAccessor;
-            _onQuote = onUpdate;
             _queue = new(50000, "QuoteUpdateQueue", OnQuoteUpdates, loggerFactory);
         }
 
@@ -72,7 +71,7 @@ namespace StrategyEngine.BrokerData
 
         private async Task UpdateOhlcv(string tradingSymbol, Exchange exchange, long token, long currentVolume, long previousVolume, decimal latestPrice, decimal previousPrice, DateTime tradeDateTime)
         {
-            if(currentVolume == 0 || latestPrice == decimal.MinValue)
+            if(currentVolume == 0 && latestPrice == decimal.MinValue)
             {
                 _logger.LogWarning("{0}:UpdateOhlcv: None of them is available. CurrentVolume: {1}, PriceToUpdate: {2}. Skipping update...", GetType().Name, currentVolume, latestPrice);
                 return;
@@ -130,8 +129,8 @@ namespace StrategyEngine.BrokerData
                                 prevPrice,
                                 quoteAfterUpdate.LastTradeDateTime);
 
-            if (_onQuote is not null)
-                await _onQuote(quoteAfterUpdate);
+            if (OnQuote is not null)
+                await OnQuote.Invoke(quoteAfterUpdate);
         }
 
         private async Task UpdateQuotes(QuoteSubscriptionRequestAck quoteUpdates)
@@ -164,13 +163,8 @@ namespace StrategyEngine.BrokerData
                                 prevPrice,
                                 quoteUpdates.LastTradeDateTime);
 
-            if (_onQuote is not null)
-                await _onQuote(new StrategyOnQuoteSnapshot
-                {
-                    Token = quoteAfterUpdate.Token,
-                    Exchange = quoteAfterUpdate.Exchange,
-                    TradingSymbol = quoteUpdates.TradingSymbol
-                });
+            if (OnQuote is not null)
+                await OnQuote.Invoke(new StrategyOnQuoteSnapshot(quoteUpdates.TradingSymbol, quoteAfterUpdate.Token, quoteAfterUpdate.Exchange));
         }
 
         private async Task OnQuoteUpdates(QuoteSubscriptionUpdates updates)
@@ -228,6 +222,7 @@ namespace StrategyEngine.BrokerData
             _disposed = true;
 
             // Dispose async resources
+            OnQuote = null;
             _subscribedSymbols.Clear();
             await _queue.DisposeAsync();
 

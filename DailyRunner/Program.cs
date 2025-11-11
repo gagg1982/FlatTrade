@@ -2,7 +2,6 @@
 using FlatTrade;
 using FlatTrade.Common.Helpers;
 using FlatTrade.Common.Throttle;
-using FlatTrade.Common.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -11,7 +10,7 @@ using Serilog;
 
 Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
-var configFile = FileHelper.GetConfigFile(args.Length == 1 ? args[0] : "");
+var configFile = FileHelper.GetConfigFile(args.Length == 1 ? args[0] : "", "AppConfig.json");
 
 IConfiguration config = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory) // Use AppContext.BaseDirectory for console apps

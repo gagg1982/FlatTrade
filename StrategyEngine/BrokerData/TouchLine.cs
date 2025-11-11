@@ -17,18 +17,18 @@ namespace StrategyEngine.BrokerData
         private readonly IConfiguration _config;
         private readonly ContextAccessor _contextAccessor;
 
-        private readonly OnUpdate? _onTouchLine;
+        public static event OnUpdate? OnTouchLine;
 
         private readonly Helpers.Queue<TouchLineSubscriptionUpdates> _queue;
 
         private List<SelectedSymbol> _subscribedSymbols = [];
-        public TouchLine(IConfiguration config, ContextAccessor contextAccessor, Api api, OnUpdate? onUpdate, ILoggerFactory loggerFactory)
+        public TouchLine(IConfiguration config, ContextAccessor contextAccessor, Api api, ILoggerFactory loggerFactory)
         {
             _api = api;
             _config = config;
             _logger = loggerFactory.CreateLogger<TouchLine>();
             _contextAccessor = contextAccessor;
-            _onTouchLine = onUpdate;
+
             _queue = new(50000, "TouchLineUpdateQueue", OnTouchLineUpdates, loggerFactory);
         }
 
@@ -104,13 +104,8 @@ namespace StrategyEngine.BrokerData
             if (Object is not null)
             {
                 var update = UpdateTouchLines(Object);
-                if (_onTouchLine is not null)
-                    await _onTouchLine(new StrategyOnTouchLineSnapshot
-                    {
-                        Exchange = update.Exchange,
-                        Token = update.Token,
-                        TradingSymbol = update.TradingSymbol,
-                    });
+                if (OnTouchLine is not null)
+                    await OnTouchLine.Invoke(new StrategyOnTouchLineSnapshot(update));
             }
         }
 

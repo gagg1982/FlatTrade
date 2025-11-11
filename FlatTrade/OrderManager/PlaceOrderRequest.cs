@@ -13,34 +13,38 @@ namespace FlatTrade.OrderManager
         public required string AccountId { get; set; }
 
         [JsonProperty("exch")]
-        public Exchange Exchange { get; set; }
+        public required Exchange Exchange { get; set; }
 
         [JsonProperty("tsym")]
-        public string TradingSymbol { get; set; } = string.Empty;
+        public required string TradingSymbol { get; set; } = string.Empty;
 
         [JsonProperty("qty")]
         [JsonConverter(typeof(LongAsStringConverter))]
-        public long Quantity { get; set; }
+        public required long Quantity { get; set; }
+
+        [JsonProperty("dscqty")]
+        [JsonConverter(typeof(LongAsStringConverter))]
+        public long DisclosedQuantity { get; set; } = 0;
 
         [JsonProperty("prc")]
         [JsonConverter(typeof(DecimalAsStringConverter))]
-        public decimal Price { get; set; }
+        public decimal Price { get; set; } = 0.0m;
 
         [JsonProperty("trgprc")]
         [JsonConverter(typeof(DecimalAsStringConverter))]
-        public decimal TriggerPrice { get; set; }
+        public decimal TriggerPrice { get; set; } = 0.0m;
 
         [JsonProperty("prd")]
-        public ProductType ProductType { get; set; }
+        public required ProductType ProductType { get; set; }
 
         [JsonProperty("trantype")]
-        public TransactionType TransactionType { get; set; }
+        public required TransactionType TransactionType { get; set; }
 
         [JsonProperty("prctyp")]
-        public PriceType PriceType { get; set; } //LMT/MKT
+        public required PriceType PriceType { get; set; } //LMT/MKT
 
         [JsonProperty("ret")]
-        public RetentionType RetentionType { get; set; } //DAY/IOC/EOS
+        public required RetentionType RetentionType { get; set; } //DAY/IOC/EOS
 
         [JsonProperty("remarks")]
         public string Remarks { get; set; } = string.Empty;
@@ -50,15 +54,23 @@ namespace FlatTrade.OrderManager
 
         [JsonProperty("blprc")]
         [JsonConverter(typeof(DecimalAsStringConverter))]
-        public decimal BookLossProfit { get; set; }
+        public decimal BookLossPrice { get; set; } = 0;
 
         [JsonProperty("bpprc")]
         [JsonConverter(typeof(DecimalAsStringConverter))]
-        public decimal BookProfitPrice { get; set; }
+        public decimal BookProfitPrice { get; set; } = 0;
 
         [JsonProperty("trailprc")]
         [JsonConverter(typeof(DecimalAsStringConverter))]
         public decimal TrailingPrice { get; set; }
+
+        [JsonProperty("rorgqty")]
+        [JsonConverter(typeof(DecimalAsStringConverter))]
+        public long RemaningOriginalQuantityFromModify { get; set; } = 0;// used in modify
+
+        [JsonProperty("rorgprc")]
+        [JsonConverter(typeof(DecimalAsStringConverter))]
+        public decimal RemainingOriginalPriceFromModify { get; set; } = 0;
 
         [JsonProperty("amo")]
         public string Amo { get; set; } = string.Empty; // value ="Yes"
@@ -97,7 +109,7 @@ namespace FlatTrade.OrderManager
 
         [JsonProperty("mkt_protection")]
         [JsonConverter(typeof(DecimalAsStringConverter))]
-        public decimal MarketProtectionPercentage { get; set; }
+        public decimal MarketProtectionPercentage { get; set; } = 0.0m;
 
     }
 }

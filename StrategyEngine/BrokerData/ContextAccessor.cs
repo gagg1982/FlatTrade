@@ -22,21 +22,56 @@ namespace StrategyEngine.BrokerData
         
         public TouchLine TouchLine { get; }
 
-        public ContextAccessor(IConfiguration config, Api api, OnUpdate? onUpdate, ILoggerFactory loggerFactory)
+        public ContextAccessor(IConfiguration config, Api api, ILoggerFactory loggerFactory)
         {
             _api = api;
             _config = config;
 
             _logger = loggerFactory.CreateLogger<ContextAccessor>();
-            Holding = new(config, this, api, onUpdate, loggerFactory);
-            Security = new(config, this, api, onUpdate, loggerFactory);
-            Trade = new(config, this, api, onUpdate, loggerFactory);
-            Position = new(config, this, api, onUpdate, loggerFactory);
-            Candle = new(config, this, api, onUpdate, loggerFactory);
-            Order = new(config, this, api, onUpdate, loggerFactory);
-            Quote = new(config, this, api, onUpdate, loggerFactory);
-            TouchLine = new(config, this, api, onUpdate, loggerFactory);
+            Holding = new(config, this, api, loggerFactory);            
+            Security = new(config, this, api, loggerFactory);            
+            Trade = new(config, this, api, loggerFactory);            
+            Position = new(config, this, api, loggerFactory);            
+            Candle = new(config, this, api, loggerFactory);          
+            Order = new(config, this, api, loggerFactory);            
+            Quote = new(config, this, api, loggerFactory);            
+            TouchLine = new(config, this, api, loggerFactory);
         }
+
+        public static void RegisterHandler(IEnumerable<OnUpdate>? onUpdate)
+        {
+            if(onUpdate is null)
+                return;
+            foreach (var handler in onUpdate)
+            {
+                Trade.OnTrades += handler;
+                Order.OnOrders += handler;
+                Position.OnPositons += handler;
+                Candle.OnCandles += handler;
+                Quote.OnQuote += handler;
+                TouchLine.OnTouchLine += handler;
+                Security.OnSecurities += handler;
+                Holding.OnHoldings += handler;
+            }
+        }
+
+        public static void UnRegisterHandler(IEnumerable<OnUpdate>? onUpdate)
+        {
+            if (onUpdate is null)
+                return;
+            foreach (var handler in onUpdate)
+            {
+                Trade.OnTrades -= handler;
+                Order.OnOrders -= handler;
+                Position.OnPositons -= handler;
+                Candle.OnCandles -= handler;
+                Quote.OnQuote -= handler;
+                TouchLine.OnTouchLine -= handler;
+                Security.OnSecurities -= handler;
+                Holding.OnHoldings -= handler;
+            }
+        }
+
 
         public void Dispose()
         {
@@ -60,7 +95,7 @@ namespace StrategyEngine.BrokerData
             await Quote.DisposeAsync();
             await Order.DisposeAsync();
             await TouchLine.DisposeAsync();
-            await Candle.DisposeAsync();
+            await Candle.DisposeAsync();            
 
             _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
             // Dispose other sync-only resources here (e.g., timers, files)

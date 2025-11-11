@@ -1,11 +1,6 @@
-﻿using FlatTrade.Common.Types.Base;
+﻿using FlatTrade.SubscriptionManager.TouchLine;
 
 namespace StrategyEngine.Model
 {
-    internal class StrategyOnTouchLineSnapshot
-    {
-        internal required string TradingSymbol { get; set; } = string.Empty;
-        internal required long Token { get; set; }
-        internal required Exchange Exchange { get; set; }
-    }
+    internal record StrategyOnTouchLineSnapshot(TouchLineSubscriptionRequestAck updates);    
 }

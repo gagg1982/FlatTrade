@@ -2,7 +2,5 @@
 
 namespace StrategyEngine.Model
 {
-    internal class StrategyOnHoldingSnapshot(HoldingsResponse obj) : HoldingsResponse(obj)
-    {
-    }
+    internal record StrategyOnHoldingSnapshot(HoldingsResponse obj); 
 }

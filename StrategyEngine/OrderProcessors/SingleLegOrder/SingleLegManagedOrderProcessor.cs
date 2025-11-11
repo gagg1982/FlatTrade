@@ -20,28 +20,31 @@ namespace StrategyEngine.OrderProcessors.SingleLegOrder
         public required OrderInfo BrokerStopLossOrder { get; set; }
         public required OrderInfo BrokerTargetProfitOrder { get; set; }
     }
-    internal class SingleLegManagedOrderProcessor(IConfiguration config, Api api, IRMS rmsManager, IOrderProcessor orderProcessor, ILoggerFactory loggerFactory)
-        : AbstractBaseStrategy<SingleLegManagedOrderProcessor>(config, api, rmsManager, orderProcessor, loggerFactory)
-        , IOrderProcessor
+    internal class SingleLegManagedOrderProcessor(IConfiguration config, Api api,ILoggerFactory loggerFactory)
+        : AsbtractOrderProcessor<SingleLegManagedOrderProcessor>(config, api, loggerFactory)
+
     {
         protected override string Name => $"{GetType().Name}";
 
-        public Task CancelOrder(CancelOrder cancelOrder)
+        protected override Task OnUpdateInternal(StrategyOnOrderSnapshot input)
+        {
+            return base.OnUpdateInternal(input);
+        }
+
+        public override Task CancelOrder(CancelOrder cancelOrder)
         {
             throw new NotImplementedException();
         }
 
-        public Task CreateOrder(CreateOrder createOrder)
+        public override Task CreateOrder(CreateOrder createOrder)
         {
             throw new NotImplementedException();
         }
 
-        public Task ModifyOrder(ModifyOrder modifyOrder)
+        public override Task ModifyOrder(ModifyOrder modifyOrder)
         {
             throw new NotImplementedException();
         }
-
-        // private ConcurrentDictionary<long, OrderHolder> 
-
+        
     }
 }

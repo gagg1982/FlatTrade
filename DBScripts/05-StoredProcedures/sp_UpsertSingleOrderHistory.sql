@@ -15,6 +15,7 @@ BEGIN
        AND target.Exchange   = src.Exchange
        AND target.ReportType = src.ReportType
        AND target.KidId = src.KidId
+       AND target.fillId = src.fillId
        AND target.NorenTime = src.NorenTime
        AND target.InternalOrderStatus = src.InternalOrderStatus
     WHEN MATCHED THEN

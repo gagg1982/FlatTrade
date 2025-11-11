@@ -1,7 +1,6 @@
 ﻿using FlatTrade.Common.JsonConvertors;
 using FlatTrade.Common.Types.Base;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
 
 namespace FlatTrade.SubscriptionManager.Order
 {
