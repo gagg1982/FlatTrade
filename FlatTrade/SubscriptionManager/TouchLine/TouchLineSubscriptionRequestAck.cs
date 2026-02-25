@@ -1,5 +1,4 @@
-﻿using FlatTrade.Common.Types.Base;
-using FlatTrade.OrderManager;
+﻿using FlatTrade.Types.Base;
 using Newtonsoft.Json;
 
 namespace FlatTrade.SubscriptionManager.TouchLine
@@ -40,7 +39,7 @@ namespace FlatTrade.SubscriptionManager.TouchLine
         public decimal High { get; set; } = decimal.MinValue;
 
         [JsonProperty("l")]
-        public decimal Low { get; set; } = decimal.MinValue;
+        public decimal Low { get; set; } = decimal.MaxValue;
 
         [JsonProperty("v")]
         public long Volume { get; set; } = 0;

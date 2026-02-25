@@ -1,5 +1,6 @@
-﻿using FlatTrade.Common.Types;
+﻿using Common.Types;
 using FlatTrade.MarketInfoManager;
+using FlatTrade.Types;
 
 namespace StrategyEngine.Helpers
 {
@@ -56,5 +57,8 @@ namespace StrategyEngine.Helpers
 
             return [..grouped];
         }
+
+        public static decimal RoundToTickWithPrecision(decimal value, decimal tickSize, int precision) => Math.Round(Math.Round((value / tickSize) * tickSize), precision);
+        
     }
 }

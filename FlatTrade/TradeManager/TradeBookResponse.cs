@@ -1,7 +1,7 @@
-﻿using FlatTrade.Common.Types.Base;
+﻿using FlatTrade.Types.Base;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using static FlatTrade.Common.Helpers.DataReaderHelper;
+using static Common.Helpers.DataReaderHelper;
 
 namespace FlatTrade.TradeManager
 {

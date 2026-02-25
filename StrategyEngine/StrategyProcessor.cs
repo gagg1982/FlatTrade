@@ -1,5 +1,5 @@
 ﻿using FlatTrade;
-using FlatTrade.Common.Types.Base;
+using FlatTrade.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.BrokerData;
@@ -7,7 +7,6 @@ using StrategyEngine.Model;
 using StrategyEngine.OrderProcessors;
 using StrategyEngine.RMS;
 using StrategyEngine.Strategies;
-using System.Threading.Tasks;
 
 namespace StrategyEngine
 {
@@ -25,7 +24,7 @@ namespace StrategyEngine
         
         private List<Task> _tasks = [];
         internal StrategyProcessor(IConfiguration config,
-                                   Api api, 
+                                   Api api,
                                    IRms rms,
                                    IStrategy strategy,
                                    IOrderProcessor orderProcessor,
@@ -41,7 +40,9 @@ namespace StrategyEngine
             _logger.LogInformation("[Strategy] Initializing {startegyProcessor}", nameof(StrategyProcessor));
 
             List<SelectedSymbol> selectSymbolsFortrading = [
-                /*new SelectedSymbol() { Exchange = Exchange.NSE, Token = 9552, TradingSymbol ="RVNL-EQ" }*/];
+                new SelectedSymbol() {Exchange = Exchange.NSE, Token = 9552, TradingSymbol ="RVNL-EQ"},
+                new SelectedSymbol() { Exchange = Exchange.NSE, Token = 5097, TradingSymbol ="ETERNAL-EQ"},
+                new SelectedSymbol() { Exchange = Exchange.NSE, Token = 27066, TradingSymbol ="SWIGGY-EQ"}];
 
             //important to attach to handler before creation of object
             //so that as soon as object is created and subscription started, events will not miss
@@ -79,18 +80,8 @@ namespace StrategyEngine
             ////===============================================================================================
         }
 
-        private bool IsInvalid(StrategySignal? signal)
-        {
-            if (signal is null || signal!.OutputDecision.OrderEventType == OrderEventType.None)
-                return false;
+        private bool IsInvalid(StrategySignal? signal) => signal is null;
 
-            if( (signal!.OutputDecision.OrderEventType == OrderEventType.CreateOrder && signal!.OutputDecision.CreateOrder is null) ||
-                (signal!.OutputDecision.OrderEventType == OrderEventType.ModifyOrder && signal!.OutputDecision.ModifyOrder is null) ||
-                (signal!.OutputDecision.OrderEventType == OrderEventType.CancelOrder && signal!.OutputDecision.CancelOrder is null))            
-                return true;
-
-            return false;
-        }
         public async Task Process(object? obj)
         {
             if (obj is null)
@@ -107,22 +98,29 @@ namespace StrategyEngine
                 if (!await _rms.IsValidationSucceeded(signal!))
                     return;
 
-                return;
-                switch (signal.OutputDecision.OrderEventType)
+                //return;
+                switch (signal!.OutputDecision)
                 {
-                    case OrderEventType.CreateOrder:
-                        _tasks.Add(_orderProcessor.CreateOrder(signal.OutputDecision.CreateOrder!));                        
+                    case OutputDecision.Create create:
+                        _tasks.Add(_orderProcessor.CreateOrder(signal.StrategyName, create.Order));
                         break;
-                    case OrderEventType.ModifyOrder:
-                        _tasks.Add(_orderProcessor.ModifyOrder(signal.OutputDecision.ModifyOrder));
+
+                    case OutputDecision.Modify modify:
+                        _tasks.Add(_orderProcessor.ModifyOrder(signal.StrategyName, modify.Order));
                         break;
-                    case OrderEventType.CancelOrder:
-                        _tasks.Add(_orderProcessor.CancelOrder(signal.OutputDecision.CancelOrder));
+
+                    case OutputDecision.Cancel cancel:
+                        _tasks.Add(_orderProcessor.CancelOrder(signal.StrategyName,cancel.Order));
                         break;
+
                     default:
-                        _logger.LogError("{0}: StrategyName:[{1}] Invalid signal. Received OrderEventType [{2}] but order details missing.", GetType().Name, signal.StrategyName, signal.OutputDecision.OrderEventType);
+                        _logger.LogError(
+                            "{Type}: StrategyName:[{Strategy}] Invalid OutputDecision type [{DecisionType}]",
+                            GetType().Name,
+                            signal.StrategyName,
+                            signal.OutputDecision.GetType().Name);
                         break;
-                }
+                }               
             }
             catch (Exception ex)
             {

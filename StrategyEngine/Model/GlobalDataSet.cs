@@ -1,9 +1,10 @@
-﻿using FlatTrade.Common.Types;
-using FlatTrade.Common.Types.Base;
+﻿using Common.Types;
 using FlatTrade.HoldingsManager;
 using FlatTrade.SubscriptionManager.Quote;
 using FlatTrade.SubscriptionManager.TouchLine;
 using FlatTrade.TradeManager;
+using FlatTrade.Types;
+using FlatTrade.Types.Base;
 using System.Collections.Concurrent;
 
 namespace StrategyEngine.Model

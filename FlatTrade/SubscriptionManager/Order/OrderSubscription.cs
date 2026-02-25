@@ -1,5 +1,4 @@
-﻿using FlatTrade.Common.Helpers;
-using FlatTrade.SubscriptionManager.TouchLine;
+﻿using Common.Helpers;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -47,7 +46,7 @@ namespace FlatTrade.SubscriptionManager.Order
 
             _onSubscriptionEvents = handler;
 
-            var request = new SubscribeOrderUpdatesRequest { AccountId = _accountId, RequestType = SubscriptionType.SubscribeOrder };
+            var request = new OrderSubscriptionUpdates { AccountId = _accountId, RequestType = SubscriptionType.SubscribeOrder };
 
             if (await _subscription.SendRequestAsync(request))
             {

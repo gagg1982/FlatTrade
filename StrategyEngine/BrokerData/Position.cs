@@ -1,6 +1,7 @@
 ﻿using FlatTrade;
-using FlatTrade.Common.Types.Base;
 using FlatTrade.TradeManager;
+using FlatTrade.Types.Base;
+using Common.Types;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;

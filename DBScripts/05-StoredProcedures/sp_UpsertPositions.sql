@@ -18,6 +18,8 @@ BEGIN
                 UPDATE SET
                     Target.UserId = Source.UserId,
                     Target.ProductType = Source.ProductType,
+                    Target.TradingSymbol = source.TradingSymbol,
+                    Target.SymbolName = source.SymbolName,
                     Target.NetPositionQuantity = Source.NetPositionQuantity,
                     Target.NetAveragePositionPrice = Source.NetAveragePositionPrice,
                     Target.DayBuyQuantity = Source.DayBuyQuantity,
@@ -60,7 +62,7 @@ BEGIN
                     Target.InstrumentName = Source.InstrumentName
             WHEN NOT MATCHED BY TARGET THEN
                 INSERT (
-                    Token, Exchange, TradingSymbol, AccountId, UserId, ProductDisplayName, ProductType,
+                    Token, Exchange, SymbolName, TradingSymbol, AccountId, UserId, ProductDisplayName, ProductType,
                     NetPositionQuantity, NetAveragePositionPrice,
                     DayBuyQuantity, DaySellQuantity, DayAveragePrice, DayAverageBuyPrice, DayAverageSellPrice, FreezeQuantity, CompanyName, DayBuyAmount, DaySellAmount,
                     CarrfyFwdBuyQuantity, CarryFwdSellQuantity, CarryFwdOriginalAveragePrice, CarryFwdAverageBuyPrice, CarryFwdAverageSellPrice, CarryFwdBuyAmount, CarryFwdSellAmount,
@@ -72,7 +74,7 @@ BEGIN
                     PricePrecision, TickSize, LotSize, PriceFactor, InstrumentName, CreatedAt
                 )
                 VALUES (
-                    Source.Token, Source.Exchange, Source.TradingSymbol, Source.AccountId, Source.UserId, Source.ProductDisplayName, Source.ProductType,
+                    Source.Token, Source.Exchange, source.SymbolName, Source.TradingSymbol, Source.AccountId, Source.UserId, Source.ProductDisplayName, Source.ProductType,
                     Source.NetPositionQuantity, Source.NetAveragePositionPrice,
                     Source.DayBuyQuantity, Source.DaySellQuantity, Source.DayAveragePrice, Source.DayAverageBuyPrice, Source.DayAverageSellPrice, Source.FreezeQuantity, Source.CompanyName, Source.DayBuyAmount, Source.DaySellAmount,
                     Source.CarrfyFwdBuyQuantity, Source.CarryFwdSellQuantity, Source.CarryFwdOriginalAveragePrice, Source.CarryFwdAverageBuyPrice, Source.CarryFwdAverageSellPrice, Source.CarryFwdBuyAmount, Source.CarryFwdSellAmount,

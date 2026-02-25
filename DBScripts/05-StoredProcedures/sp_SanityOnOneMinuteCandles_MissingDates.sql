@@ -91,7 +91,7 @@ BEGIN
         ON a.InstrumentId = i.Id
        AND a.TradeDate = t.TradingDate
     WHERE a.TradeDate IS NULL  -- Missing only
-    ORDER BY i.ExchangeCode, i.TradingSymbol, t.TradingDate
+    ORDER BY  t.TradingDate desc, i.ExchangeCode desc, i.TradingSymbol asc
     OPTION (RECOMPILE);
 END;
 GO

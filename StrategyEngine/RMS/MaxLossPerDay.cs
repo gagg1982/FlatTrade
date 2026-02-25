@@ -1,5 +1,5 @@
 ﻿using FlatTrade;
-using FlatTrade.Common.Types.Base;
+using FlatTrade.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
@@ -15,14 +15,19 @@ namespace StrategyEngine.RMS
         protected override string Name => $"{GetType().Name}_RmsRule";
 
         private readonly bool _enabled = true;
-        private readonly decimal _configuredMaxLossPerDay = 1000;
+        private readonly decimal _configuredMaxLossPerDay = 2000;
 
-        public override Task<bool> IsValidationSucceeded(StrategySignal strategySignal)
+        public override async Task<bool> IsValidationSucceeded(StrategySignal strategySignal)
         {
             if (!_enabled)
-                return Task.FromResult(true);
+                return true;
 
-            return Task.FromResult(false);
+            var validationSucceeded = false;
+            if(!validationSucceeded)
+            {
+               await base.WriteToDb(strategySignal, Name, $"ConfiguredMaxLossPerDay ({_configuredMaxLossPerDay}) is brached. More parameters later.");
+            }
+            return validationSucceeded;
         }
 
         protected override Task OnUpdateInternal(StrategyOnTradeSnapshot input)

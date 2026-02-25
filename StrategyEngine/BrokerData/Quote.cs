@@ -1,7 +1,7 @@
 ﻿using FlatTrade;
-using FlatTrade.Common.Types.Base;
 using FlatTrade.SubscriptionManager;
 using FlatTrade.SubscriptionManager.Quote;
+using FlatTrade.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
@@ -73,7 +73,7 @@ namespace StrategyEngine.BrokerData
         {
             if(currentVolume == 0 && latestPrice == decimal.MinValue)
             {
-                _logger.LogWarning("{0}:UpdateOhlcv: None of them is available. CurrentVolume: {1}, PriceToUpdate: {2}. Skipping update...", GetType().Name, currentVolume, latestPrice);
+                //_logger.LogWarning("{0}:UpdateOhlcv: None of them is available. CurrentVolume: {1}, PriceToUpdate: {2}. Skipping update...", GetType().Name, currentVolume, latestPrice);
                 return;
             }
 
@@ -192,7 +192,7 @@ namespace StrategyEngine.BrokerData
                     await UnSubscribeQuoteAsync(_subscribedSymbols);
                     break;
                 case SubscriptionType.SubscribeQuoteUpdates:
-                    _logger.LogDebug("[OnQuoteUpdates-SubscribeQuoteUpdates] {msg}", msg);
+                    //_logger.LogDebug("[OnQuoteUpdates-SubscribeQuoteUpdates] {msg}", msg);
                     if (subscriptionObject is QuoteSubscriptionUpdates Object)
                         await _queue.WriteAsync(Object);
                     break;

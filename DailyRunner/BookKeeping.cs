@@ -1,18 +1,19 @@
-﻿using DailyRunner.Helpers;
+﻿using Common.Helpers;
+using Common.Types;
+using DailyRunner.Helpers;
 using FlatTrade;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Types;
-using FlatTrade.Common.Types.Base;
 using FlatTrade.HoldingsManager;
 using FlatTrade.MarketInfoManager;
 using FlatTrade.OrderManager;
 using FlatTrade.TradeManager;
+using FlatTrade.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Data;
 using System.Diagnostics;
-using static FlatTrade.Common.Helpers.DataReaderHelper;
+using System.Globalization;
+using static Common.Helpers.DataReaderHelper;
 
 namespace DailyRunner
 {
@@ -42,6 +43,7 @@ namespace DailyRunner
         public string Exchange2 { get; set; } = string.Empty;
         public string TradingSymbol2 { get; set; } = string.Empty;
         public long Token2 { get; set; }
+        public decimal DailyClose { get; set; }
     }
 
     internal class BrokerageAndTaxes 
@@ -105,7 +107,7 @@ namespace DailyRunner
         private readonly string _equityGetTradeBookProcedureName = "[dbo].[sp_GetTradeBook]";
         private readonly string _equityUpsertBrokerageAndTaxesStoredProcedureName = "[dbo].[sp_UpsertBrokerageAndTaxes]";
         private readonly string _equityBrokerageAndTaxesTvpTypeName = "[dbo].[TBrokerageAndTaxes]";
-
+        private readonly DateTime _equityBrokerageAndtaxesStartDate = DateTime.MinValue;
 
         private readonly ConcurrentBag<Task?> _taskList = [];
         private readonly CsvWriter? _csvWriter;
@@ -145,6 +147,10 @@ namespace DailyRunner
                 _csvWriter = new CsvWriter(Path.GetDirectoryName(filePath)!, fileChannelCapacity, nameof(BookKeeping), loggerFactory);
             }
 
+            var startDateStringFromConfig = config["BookKeeping:CalculateBrokerageAndTaxesFrom"];
+            if (!string.IsNullOrEmpty(startDateStringFromConfig))
+                _equityBrokerageAndtaxesStartDate = DateTime.Parse(startDateStringFromConfig, CultureInfo.InvariantCulture).Date;            
+            
             _api = api;
         }
         public async Task GenerateAndLoad()
@@ -364,7 +370,7 @@ namespace DailyRunner
         {
             var parameters = new Dictionary<string, object?>
             {
-                { "@StartDate", DBNull.Value }
+                { "@StartDate", _equityBrokerageAndtaxesStartDate }
             };
 
             // Call the SP and map result
@@ -552,6 +558,8 @@ namespace DailyRunner
                     Exchange2 = h.ExchangeSymbolResponse.Count != 0 ? h.ExchangeSymbolResponse[1].Exchange.ToString() : string.Empty,
                     TradingSymbol2 = h.ExchangeSymbolResponse.Count != 0 ? h.ExchangeSymbolResponse[1].TradingSymbol : string.Empty,
                     Token2 = h.ExchangeSymbolResponse.Count != 0 ? h.ExchangeSymbolResponse[1].Token : 0,
+
+                    DailyClose = h.DailyClose,
                 };
             })];
         }

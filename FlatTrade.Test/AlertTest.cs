@@ -1,5 +1,5 @@
 ﻿using FlatTrade.AlertManager;
-using FlatTrade.Common.Types.Base;
+using FlatTrade.Types.Base;
 
 namespace FlatTrade.Test
 {

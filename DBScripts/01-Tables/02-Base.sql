@@ -1,3 +1,9 @@
+DROP TABLE IF EXISTS [dbo].[LatestNpsNav];
+PRINT 'Table LatestNpsNav dropped if it existed.';
+DROP TABLE IF EXISTS [dbo].[HistoricNpsNav];
+PRINT 'Table HistoricNpsNav dropped if it existed.';
+DROP TABLE IF EXISTS [dbo].[CorporateActions];
+PRINT 'Table CorporateActions dropped if it existed.';
 DROP TABLE IF EXISTS [dbo].[BrokerageAndTaxes];
 PRINT 'Table BrokerageAndTaxes dropped if it existed.';
 DROP TABLE IF EXISTS [dbo].[ExcludedStockInstruments];
@@ -25,6 +31,12 @@ PRINT 'Table StockInstruments dropped if it existed.';
 DROP TABLE IF EXISTS [dbo].[Exchange];
 PRINT 'Table Exchange dropped if it existed.';
 
+DROP TYPE IF EXISTS [dbo].[TLatestNpsNav];
+PRINT 'Type TLatestNpsNav dropped if it existed.';
+DROP TYPE IF EXISTS [dbo].[THistoricNpsNav];
+PRINT 'Type THistoricNpsNav dropped if it existed.';
+DROP TYPE IF EXISTS [dbo].[TCorporateActions];
+PRINT 'Type TCorporateActions dropped if it existed.';
 DROP TYPE IF EXISTS [dbo].[TBrokerageAndTaxes];
 PRINT 'Type TBrokerageAndTaxes dropped if it existed.';
 DROP TYPE IF EXISTS [dbo].[TPositions];
@@ -95,7 +107,145 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='BrokerageAndTaxes' AND xtype
 
 GO;
 --============================================================
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='LatestNpsNav' AND xtype='U')
+    BEGIN      
+        
+       CREATE TABLE dbo.LatestNpsNav
+        (
+            PFMCode         VARCHAR(20)     NOT NULL,
+            PFMName         VARCHAR(200)    NOT NULL,
+            SchemeCode      VARCHAR(20)     NOT NULL,
+            SchemeName      VARCHAR(200)    NOT NULL,
+            NavDate         DATE            NOT NULL,
+            NAV             DECIMAL(18,6)   NOT NULL,
+            Return_1D       DECIMAL(10,4)   NULL,
+            Return_7D       DECIMAL(10,4)   NULL,
+            Return_1M       DECIMAL(10,4)   NULL,
+            Return_3M       DECIMAL(10,4)   NULL,
+            Return_6M       DECIMAL(10,4)   NULL,
+            Return_1Y       DECIMAL(10,4)   NULL,
+            Return_3Y       DECIMAL(10,4)   NULL,
+            Return_5Y       DECIMAL(10,4)   NULL,
 
+            CreatedAt       DATETIME       NOT NULL DEFAULT SYSUTCDATETIME(),
+            LastUpdated     DATETIME       NULL
+
+            CONSTRAINT PK_LatestNpsNav 
+                PRIMARY KEY CLUSTERED (PFMCode, SchemeCode, NavDate)
+        );
+
+        CREATE NONCLUSTERED INDEX IX_LatestNpsNav_PFMCode
+        ON dbo.LatestNpsNav (PFMCode);
+
+        CREATE NONCLUSTERED INDEX IX_LatestNpsNav_Return1D
+        ON dbo.LatestNpsNav (Return_1D);
+
+        CREATE NONCLUSTERED INDEX IX_LatestNpsNav_Return7D
+        ON dbo.LatestNpsNav (Return_7D);
+
+        CREATE NONCLUSTERED INDEX IX_LatestNpsNav_Return1M
+        ON dbo.LatestNpsNav (Return_1M);
+
+        CREATE NONCLUSTERED INDEX IX_LatestNpsNav_Return3M
+        ON dbo.LatestNpsNav (Return_3M);
+
+        CREATE NONCLUSTERED INDEX IX_LatestNpsNav_Return6M
+        ON dbo.LatestNpsNav (Return_6M);
+
+        CREATE NONCLUSTERED INDEX IX_LatestNpsNav_Return1Y
+        ON dbo.LatestNpsNav (Return_1Y);
+
+        CREATE NONCLUSTERED INDEX IX_LatestNpsNav_Return3Y
+        ON dbo.LatestNpsNav (Return_3Y);
+
+        CREATE NONCLUSTERED INDEX IX_LatestNpsNav_Return5Y
+        ON dbo.LatestNpsNav (Return_5Y);
+
+        CREATE NONCLUSTERED INDEX IX_NpsLatestNav_SchemeName
+        ON dbo.LatestNpsNav (SchemeName);
+        
+        PRINT 'Table LatestNpsNav created.';
+    END
+    ELSE
+    BEGIN
+        PRINT 'Table LatestNpsNav already exists.';
+    END
+
+GO;
+
+--============================================================
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='HistoricNpsNav' AND xtype='U')
+    BEGIN      
+        
+       CREATE TABLE dbo.HistoricNpsNav
+        (
+            scheme_code   VARCHAR(20)  NOT NULL,
+            scheme_name   VARCHAR(200) NOT NULL,
+            nav           DECIMAL(18,6) NOT NULL,
+            nav_date      DATE         NOT NULL,
+            created_at    DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME(),
+            updated_at    DATETIME2(3) NULL,
+
+            CONSTRAINT PK_HistoricNpsNav 
+                PRIMARY KEY CLUSTERED (scheme_code, nav_date)
+        );
+
+
+        CREATE NONCLUSTERED INDEX IX_HistoricNpsNav_Scheme_Historic
+        ON dbo.HistoricNpsNav (scheme_code, nav_date DESC)
+        INCLUDE (nav, scheme_name);
+
+        CREATE NONCLUSTERED INDEX IX_HistoricNpsNav_NavDate
+        ON dbo.HistoricNpsNav (nav_date)
+        INCLUDE (scheme_code, nav, scheme_name);
+        
+        PRINT 'Table HistoricNpsNav created.';
+    END
+    ELSE
+    BEGIN
+        PRINT 'Table HistoricNpsNav already exists.';
+    END
+
+GO;
+
+--============================================================
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='CorporateActions' AND xtype='U')
+    BEGIN      
+        
+       CREATE TABLE dbo.CorporateActions
+        (
+            Id                  INT IDENTITY(1,1) PRIMARY KEY,
+            Symbol              NVARCHAR(20)      NOT NULL,
+	        Exchange            NVARCHAR(10)      NOT NULL,
+	        Series              NVARCHAR(20)      NOT NULL,
+	        Indicative   		NVARCHAR(10)      NULL,
+	        FaceValue			DECIMAL(5,2)	  NOT NULL,
+            Subject             NVARCHAR(200)     NULL,
+            ExDate              DATE              NULL,
+            RecordDate          DATE              NULL,
+	        BookClosureStartDate          DATE              NULL,
+	        BookClosureEndDate            DATE              NULL,
+	        NoDeliveryStartDate      DATE              NULL,
+	        NoDeliveryEndDate        DATE              NULL,
+	        CompanyName         NVARCHAR(200)     NOT NULL,
+            Isin                NVARCHAR(32)      NOT NULL,
+	        AnnouncementDate        DATE          NOT NULL,
+            CreatedAt           DATETIME          DEFAULT GETDATE(),
+            UpdatedAt           DATETIME          DEFAULT GETDATE()
+        );
+
+        CREATE UNIQUE INDEX IX_CorporateActions_Symbol_Exchange_Subject_ExDate
+        ON dbo.CorporateActions(Symbol, Exchange, Subject, ExDate);
+        
+        PRINT 'Table CorporateActions created.';
+    END
+    ELSE
+    BEGIN
+        PRINT 'Table CorporateActions already exists.';
+    END
+
+GO;
+--============================================================
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ExcludedStockInstruments' AND xtype='U')
     BEGIN      
         
@@ -125,6 +275,7 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Postions' AND xtype='U')
         (
             Token                       INT,
             Exchange                    VARCHAR(10),
+            SymbolName                  VARCHAR(50),
             TradingSymbol               VARCHAR(50),
             AccountId                   VARCHAR(20),
             UserId                      VARCHAR(20),
@@ -192,8 +343,8 @@ GO;
 --============================================================
 
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Holdings' AND xtype='U')
-    BEGIN      
-        CREATE TABLE dbo.Holdings
+    BEGIN              
+    CREATE TABLE dbo.Holdings
         (
             HoldingQuantity                        INT          NOT NULL,
             NonPoaDisplayQuantity                  INT          NULL,
@@ -223,6 +374,7 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Holdings' AND xtype='U')
             TradingSymbol2                         VARCHAR(50)     NULL,
             Token2                                 INT          NULL,
 
+            DailyClose                             Decimal(18,4) NULL,
             -- Optional: metadata columns
             ModifiedAt                              DATETIME2(3)    DEFAULT SYSUTCDATETIME()
         );
@@ -393,6 +545,7 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='OrderBook' AND xtype='U')
         CREATE TABLE OrderBook (
             UserId NVARCHAR(64) NOT NULL,
             AccountId NVARCHAR(64) NOT NULL,
+            SymbolName NVARCHAR(64) NOT NULL,
             KidId INT NOT NULL,
             NorenOrderNumber BIGINT NOT NULL,
             Exchange NVARCHAR(50) NOT NULL,
@@ -458,80 +611,45 @@ GO
 --============================================================
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DailyPAndLSummary' AND xtype='U')
     BEGIN
-        	
-    CREATE TABLE DailyPAndLSummary (
-	        StartDate 			DATE NOT NULL,
-	        SymbolName			NVARCHAR(64) NOT NULL,
-	
-	        NetProfitAndLoss 	DECIMAL(15,4) NOT NULL,
-	        GrossProfitAndLoss 	DECIMAL(15,4) NOT NULL,
-	
-            --===================================
-            TotalTradeCount 		INT NOT NULL,
-            TotalTradeQuantity	    INT NOT NULL,
-            TotalAverageTradePrice	DECIMAL(15,4) NOT NULL,
-	        TotalTradeValue			DECIMAL(15,4) NOT NULL,
-	        TotalTaxes				DECIMAL(15,4) NOT NULL,
-	        TotalBrokerage			DECIMAL(15,4) NOT NULL,
-		
-            TotalBuyTradeCount			INT NOT NULL,
-            TotalBuyTradeQuantity		INT NOT NULL,
-            TotalBuyAverageTradePrice	DECIMAL(15,4) NOT NULL,
-	        TotalBuyTradeValue			DECIMAL(15,4) NOT NULL,
-	        TotalBuyTaxes				DECIMAL(15,4) NOT NULL,
-	        TotalBuyBrokerage			DECIMAL(15,4) NOT NULL,
-	
-            TotalSellTradeCount			INT NOT NULL,
-            TotalSellTradeQuantity		INT NOT NULL,
-            TotalSellAverageTradePrice	DECIMAL(15,4) NOT NULL,
-	        TotalSellTradeValue			DECIMAL(15,4) NOT NULL,
-	        TotalSellTaxes				DECIMAL(15,4) NOT NULL,
-	        TotalSellBrokerage			DECIMAL(15,4) NOT NULL,
-            --===================================
-            ProfitableTradeCount		INT NOT NULL,
-            ProfitableTradeQuantity		INT NOT NULL,
-            ProfitableTradeAveragePrice	DECIMAL(15,4) NOT NULL,
-	        ProfitableTradeValue		DECIMAL(15,4) NOT NULL,
-	        ProfitableTradeTaxes		DECIMAL(15,4) NOT NULL,
-	        ProfitableTradeBrokerage	DECIMAL(15,4) NOT NULL,
-	
-            ProfitableBuyTradeCount			INT NOT NULL,
-            ProfitableBuyTradeQuantity		INT NOT NULL,
-            ProfitableBuyAverageTradePrice	DECIMAL(15,4) NOT NULL,
-	        ProfitableBuyTradeValue			DECIMAL(15,4) NOT NULL,
-	        ProfitableBuyTaxes				DECIMAL(15,4) NOT NULL,
-	        ProfitableBuyBrokerage			DECIMAL(15,4) NOT NULL,
-	
-            ProfitableSellTradeCount		INT NOT NULL,
-            ProfitableSellTradeQuantity		INT NOT NULL,
-            ProfitableSellAverageTradePrice	DECIMAL(15,4) NOT NULL,
-	        ProfitableSellTradeValue		DECIMAL(15,4) NOT NULL,
-	        ProfitableSellTaxes				DECIMAL(15,4) NOT NULL,
-	        ProfitableSellBrokerage			DECIMAL(15,4) NOT NULL,
-            --===================================
-            LossTradeCount			INT NOT NULL,
-            LossTradeQuantity		INT NOT NULL,
-            LossTradeAveragePrice	DECIMAL(15,4) NOT NULL,
-            LossTradeValue			DECIMAL(15,4) NOT NULL,
-	        LossTradeTaxes				DECIMAL(15,4) NOT NULL,
-	        LossTradeBrokerage			DECIMAL(15,4) NOT NULL,
-	
-            LossBuyTradeCount			INT NOT NULL,
-            LossBuyTradeQuantity		INT NOT NULL,		
-            LossBuyAverageTradePrice	DECIMAL(15,4) NOT NULL,
-	        LossBuyTradeValue			DECIMAL(15,4) NOT NULL,
-	        LossBuyTaxes				DECIMAL(15,4) NOT NULL,
-	        LossBuyBrokerage			DECIMAL(15,4) NOT NULL,
-	
-            LossSellTradeCount			INT NOT NULL,
-            LossSellTradeQuantity		INT NOT NULL,
-            LossSellAverageTradePrice	DECIMAL(15,4) NOT NULL,
-	        LossSellTradeValue			DECIMAL(15,4) NOT NULL,
-	        LossSellTaxes				DECIMAL(15,4) NOT NULL,
-	        LossSellBrokerage			DECIMAL(15,4) NOT NULL,
+        
+        CREATE TABLE dbo.DailyPAndLSummary
+        (
+            -- Primary identifiers
+            SymbolName              VARCHAR(64)      NOT NULL,
+            TradeDate               DATE              NOT NULL,
 
-            CONSTRAINT UQ_DailyPAndLSummary_SymbolName_StartDate UNIQUE ([SymbolName],[StartDate])
-           
+            -- P&L fields
+            GrossIntraDayPAndL        DECIMAL(18,2)     NOT NULL,
+            NetIntraDayPAndL        DECIMAL(18,2)     NOT NULL,
+            NetDeliveryValue        DECIMAL(18,2)     NOT NULL,
+
+            -- Counts
+            BuyCount                INT               NOT NULL,
+            BuyQuantity             INT               NOT NULL,
+            BuyCharges              Decimal(10,2)     NOT NULL,
+            SellCount               INT               NOT NULL,
+            SellQuantity            INT               NOT NULL,
+            SellCharges              Decimal(10,2)     NOT NULL,
+
+            -- Average prices
+            BuyAveragePrice         DECIMAL(18,4)     NOT NULL,
+            SellAveragePrice        DECIMAL(18,4)     NOT NULL,
+            TotalCharges            Decimal(10,2)     NOT NULL,
+
+            -- Net quantities
+            NetIntraDayQuantity     INT               NOT NULL,
+            NetDeliveryQuantity     INT               NOT NULL,
+
+            -- Value calculations
+            NetIntraDayBuyValue     DECIMAL(18,2)     NOT NULL,
+            NetIntraDaySellValue    DECIMAL(18,2)     NOT NULL,
+
+            NetDeliveryBuyValue     DECIMAL(18,2)     NOT NULL,
+            NetDeliverySellValue    DECIMAL(18,2)     NOT NULL,
+
+            -- Recommended Composite Primary Key
+            CONSTRAINT PK_DailyPAndLSummary 
+                PRIMARY KEY (SymbolName, TradeDate)
         );
         PRINT 'Table DailyPAndLSummary created.';
     END
@@ -559,6 +677,81 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Exchange' AND xtype='U')
     END
     ELSE
         PRINT 'Table Exchange already exists.';
+
+GO
+
+--============================================================
+IF TYPE_ID(N'[dbo].[TLatestNpsNav]') IS NULL
+    BEGIN
+        CREATE TYPE dbo.TLatestNpsNav AS TABLE
+        (
+            PFMCode         VARCHAR(20),
+            PFMName         VARCHAR(200),
+            SchemeCode      VARCHAR(20),
+            SchemeName      VARCHAR(200),
+            NAV             DECIMAL(18,6),
+            Return_1D       DECIMAL(10,4),
+            Return_7D       DECIMAL(10,4),
+            Return_1M       DECIMAL(10,4),
+            Return_3M       DECIMAL(10,4),
+            Return_6M       DECIMAL(10,4),
+            Return_1Y       DECIMAL(10,4),
+            Return_3Y       DECIMAL(10,4),
+            Return_5Y       DECIMAL(10,4),
+            NavDate         Date
+        );
+
+        PRINT 'Type TLatestNpsNav created.';
+    END
+    ELSE
+        PRINT 'Type TLatestNpsNav already exists.';
+
+GO
+--============================================================
+IF TYPE_ID(N'[dbo].[THistoricNpsNav]') IS NULL
+    BEGIN
+        CREATE TYPE dbo.THistoricNpsNav AS TABLE
+        (
+            scheme_code VARCHAR(20),
+            scheme_name VARCHAR(200),
+            nav_date    DATE,
+            nav         DECIMAL(18,6),
+
+            PRIMARY KEY (scheme_code, nav_date)
+        );
+
+        PRINT 'Type THistoricNpsNav created.';
+    END
+    ELSE
+        PRINT 'Type THistoricNpsNav already exists.';
+
+GO
+--============================================================
+IF TYPE_ID(N'[dbo].[TCorporateActions]') IS NULL
+    BEGIN
+        CREATE TYPE dbo.TCorporateActions AS TABLE
+        (
+            Symbol              NVARCHAR(20)      NOT NULL,
+	        Exchange            NVARCHAR(10)      NOT NULL,
+	        Series              NVARCHAR(20)      NOT NULL,
+	        Indicative   		NVARCHAR(10)      NULL,
+	        FaceValue			DECIMAL(5,2)	  NOT NULL,
+            Subject             NVARCHAR(200)     NULL,
+            ExDate              DATE              NULL,
+            RecordDate          DATE              NULL,
+	        BookClosureStartDate          DATE              NULL,
+	        BookClosureEndDate            DATE              NULL,
+	        NoDeliveryStartDate      DATE              NULL,
+	        NoDeliveryEndDate        DATE              NULL,
+	        CompanyName         NVARCHAR(200)     NOT NULL,
+            Isin                NVARCHAR(32)      NOT NULL,
+	        AnnouncementDate        DATE          NOT NULL
+        );
+
+        PRINT 'Type TCorporateActions created.';
+    END
+    ELSE
+        PRINT 'Type TCorporateActions already exists.';
 
 GO
 --============================================================
@@ -786,6 +979,7 @@ IF TYPE_ID(N'[dbo].[TPositions]') IS NULL
         (
             Token                       INT,
             Exchange                    VARCHAR(10),
+            SymbolName                  VARCHAR(50),
             TradingSymbol               VARCHAR(50),
             AccountId                   VARCHAR(20),
             UserId                      VARCHAR(20),
@@ -878,8 +1072,9 @@ IF TYPE_ID(N'[dbo].[THoldings]') IS NULL
 
             Exchange2                              VARCHAR(10),
             TradingSymbol2                         VARCHAR(50),
-            Token2                                 INT
-
+            Token2                                 INT,
+            
+            DailyClose                             DECIMAL(18,4)
         );
         PRINT 'Type THoldings created.';
     END
@@ -1015,6 +1210,7 @@ IF TYPE_ID(N'[dbo].[TOrderBook]') IS NULL
         (
             UserId NVARCHAR(64) NOT NULL,
             AccountId NVARCHAR(64) NOT NULL,
+            SymbolName NVARCHAR(64) NOT NULL,
             KidId INT NOT NULL,
             NorenOrderNumber BIGINT NOT NULL,
             Exchange NVARCHAR(50) NOT NULL,

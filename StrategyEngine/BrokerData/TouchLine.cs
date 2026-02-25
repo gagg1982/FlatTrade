@@ -1,7 +1,7 @@
 ﻿using FlatTrade;
-using FlatTrade.Common.Types.Base;
 using FlatTrade.SubscriptionManager;
 using FlatTrade.SubscriptionManager.TouchLine;
+using FlatTrade.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
@@ -128,7 +128,7 @@ namespace StrategyEngine.BrokerData
                     await UnSubscribeTouchLineAsync(_subscribedSymbols);
                     break;
                 case SubscriptionType.SubscribeTouchLineUpdates:
-                    _logger.LogInformation("[OnTouchLineUpdates-SubscribeTouchLineUpdates] {msg}", msg);
+                    //_logger.LogInformation("[OnTouchLineUpdates-SubscribeTouchLineUpdates] {msg}", msg);
                     if (subscriptionObject is TouchLineSubscriptionUpdates Object)
                         await _queue.WriteAsync(Object);
                     break;

@@ -1,7 +1,8 @@
 ﻿using DailyRunner;
-using FlatTrade;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Throttle;
+using Ft = DailyRunner.FlatTrade;
+using Us = DailyRunner.Upstox;
+using Common.Helpers;
+using Common.Throttle;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -29,83 +30,50 @@ var loggerFactory = new LoggerFactory().AddSerilog(Log.Logger);
 var throttler = new RateLimiterThrottleInterceptor(config, loggerFactory);
 
 //=====================================================================
-//using var playwright = await Playwright.CreateAsync();
-
-//await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-//{
-//    Headless = true,
-//    Args = new[]
-//    {
-//        "--disable-http2",
-//        "--disable-quic",
-//        "--disable-blink-features=AutomationControlled"
-//    }
-//});
-
-//var context = await browser.NewContextAsync(new BrowserNewContextOptions
-//{
-//    UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
-//});
-
-
-//await context.AddInitScriptAsync("Object.defineProperty(navigator, 'webdriver', { get: () => undefined })");
-
-//var page = await context.NewPageAsync();
-
-//// Visit homepage to establish cookies
-//await page.GotoAsync("https://www.nseindia.com", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
-
-
-//page.RequestFinished += (_, request) =>
-//{
-//    Console.WriteLine($"Request: {request.Url}");
-//    foreach (var h in request.Headers)
-//        Console.WriteLine($"{h.Key}: {h.Value}");
-//};
-
-//// Now hit API
-//var response = await page.GotoAsync(
-//    "https://www.nseindia.com/api/corporates-corporateActions?index=equities&from_date=01-01-2025&to_date=27-11-2025",
-//    new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
-
-//var json = await response.TextAsync();
-//Console.WriteLine(json);
-
-//=====================================================================
-
-Api api = new(config["Api:Key"] ?? String.Empty,
+FlatTrade.Api ftApi = new(config["Api:Key"] ?? String.Empty,
               config["Api:RedirectUrl"] ?? String.Empty,
               config["Api:Secret"] ?? String.Empty,
               config["Api:AccessTokenFilePath"] ?? String.Empty,
+              config["Api:Uid"] ?? String.Empty,
+              config["Api:Password"] ?? String.Empty,
+              config["Api:QrCode"] ?? String.Empty,
               loggerFactory,
               throttler); //apikey
 
 //=====================================================================
 
-//var corporateActionsGenerator = new CorporateActionsGenerator(api, config, loggerFactory);
-//await corporateActionsGenerator.GenerateAndLoad();
-
-//=====================================================================
-var bookKeeping = new BookKeeping(api, config, loggerFactory);  // for orderbook, tradebook, singleorderhistory
+var bookKeeping = new BookKeeping(ftApi, config, loggerFactory);  // for orderbook, tradebook, singleorderhistory
 await bookKeeping.GenerateAndLoad();
 
 //=====================================================================
 
-var exchangeGenerator = new ExchangeGenerator(api, config, loggerFactory);
+var exchangeGenerator = new ExchangeGenerator(ftApi, config, loggerFactory);
 await exchangeGenerator.GenerateAndLoad();
 
 //=====================================================================
 
-var stocksGenerator = new StocksGenerator(api, config, loggerFactory);
+var stocksGenerator = new Ft.StocksGenerator(ftApi, config, loggerFactory);
 var listOfExchangeTokenSymbolTuple = await stocksGenerator.GenerateAndLoad();
-//IEnumerable<(Exchange, long, string)> listOfExchangeTokenSymbolTuple = [(Exchange.NSE, 9552, "RVNL-EQ")];
+//IEnumerable<(string, long, string, string)> listOfExchangeTokenSymbolTuple = [("NSE", 9552, "RVNL-EQ", "INE415G01027")];
 //=====================================================================
 
-var stocksOhlcvGenerator = new StocksOhlcvGenerator(api, config, listOfExchangeTokenSymbolTuple, loggerFactory);
-await stocksOhlcvGenerator.GenerateAndLoad();
+var stocksOhlcvGeneratorFt = new Ft.StocksOhlcvGenerator(ftApi, config, listOfExchangeTokenSymbolTuple, loggerFactory);
+await stocksOhlcvGeneratorFt.GenerateAndLoad();
 
 //=====================================================================
-var fillMissingOhlcv = new FillMissingOhlcv(api, config, loggerFactory);
-await fillMissingOhlcv.GenerateAndLoad();
+var fillMissingOhlcvFt = new Ft.FillMissingOhlcv(ftApi, config, loggerFactory);
+await fillMissingOhlcvFt.GenerateAndLoad();
 
-//=====================================================================
+////=====================================================================
+//Upstox.Api usApi = new(
+//              loggerFactory,
+//              throttler); //apikey
+
+//var stocksOhlcvGeneratorUs = new Us.StocksOhlcvGenerator(usApi, config, listOfExchangeTokenSymbolTuple, loggerFactory);
+//await stocksOhlcvGeneratorUs.GenerateAndLoad();
+
+////=====================================================================
+//var fillMissingOhlcvUs = new Us.FillMissingOhlcv(usApi, config, loggerFactory);
+//await fillMissingOhlcvUs.GenerateAndLoad();
+
+////=====================================================================

@@ -11,36 +11,10 @@ namespace StrategyEngine.RMS
         : AbstractRms<RmsManager>(config, api, orderProcessor, loggerFactory), IAsyncDisposable, IDisposable
     {
         private bool Enabled { get; }
-        private bool _disposed = false;
 
         private ConcurrentDictionary<IRms, bool> Rules { get; } = [];
 
-        protected override string Name => $"{GetType().Name}_RmsExecutor";
-        
-        public virtual void Dispose()
-        {
-            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
-            GC.SuppressFinalize(this);
-        }
-
-        public virtual async ValueTask DisposeAsync()
-        {
-            await DisposeAsyncCore();
-            GC.SuppressFinalize(this);
-        }
-
-        private async ValueTask DisposeAsyncCore()
-        {
-            if (_disposed)
-                return;
-
-            _disposed = true;
-
-            // Dispose async resources             
-
-            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
-            await Task.FromResult<ValueTask>(default);
-        }
+        protected override string Name => $"{GetType().Name}_RmsExecutor";                      
 
         public IRms Register(IRms rule) { Rules.AddOrUpdate(rule, true, (_, _) => true); return this; }
 

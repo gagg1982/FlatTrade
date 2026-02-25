@@ -1,6 +1,6 @@
-﻿using FlatTrade.Common.Types.Base;
-using FlatTrade.OrderManager;
+﻿using FlatTrade.OrderManager;
 using FlatTrade.SubscriptionManager.Order;
+using FlatTrade.Types.Base;
 
 namespace StrategyEngine.Model
 {
@@ -9,6 +9,7 @@ namespace StrategyEngine.Model
         public long NorenOrderNumber { get; set; }
         public string UserId { get; set; } = string.Empty;
         public string AccountId { get; set; } = string.Empty;
+        public long CancelledQuantity { get; set; }
         public Exchange Exchange { get; set; }
         public string TradingSymbol { get; set; } = string.Empty;
         public TransactionType TransactionType { get; set; }
@@ -29,6 +30,11 @@ namespace StrategyEngine.Model
         public decimal BookProfitPrice { get; set; }
         public decimal BookLossPrice { get; set; }
         public decimal TrailingPrice { get; set; }
+        public long FillQuantity { get; set; }
+        public decimal FillPrice { get; set; }
+        public long FillId { get; set; }
+        public decimal AveragePriceOfTradedQuantity { get; set; }
+        public DateTime FillDateTime { get; set; }
         public long TotalFilled { get; set; }
        
         public static IEnumerable<OrderInfo> ConvertFrom(IEnumerable<OrderBookResponse> orderBookResponse)
@@ -68,8 +74,8 @@ namespace StrategyEngine.Model
         }
 
         public static OrderInfo? ConvertFrom(OrderSubscriptionUpdates orderSubscriptionUpdates)
-        {            
-            return orderSubscriptionUpdates is null ? default: new OrderInfo
+        {
+            return orderSubscriptionUpdates is null ? default : new OrderInfo
             {
                 NorenOrderNumber = orderSubscriptionUpdates.NorenOrderNumber,
                 UserId = orderSubscriptionUpdates.UserId,
@@ -77,6 +83,7 @@ namespace StrategyEngine.Model
                 Exchange = orderSubscriptionUpdates.Exchange,
                 TradingSymbol = orderSubscriptionUpdates.TradingSymbol,
                 TransactionType = orderSubscriptionUpdates.TransactionType,
+                CancelledQuantity = orderSubscriptionUpdates.CancelledQuantity,
                 Quantity = orderSubscriptionUpdates.Quantity,
                 TriggerPrice = orderSubscriptionUpdates.TriggerPrice,
                 Price = orderSubscriptionUpdates.Price,
@@ -88,6 +95,12 @@ namespace StrategyEngine.Model
                 RetentionType = orderSubscriptionUpdates.RetentionType,
                 ExchangeOrderNumber = orderSubscriptionUpdates.ExchangeOrderNumber,
                 DisclosedQuantity = orderSubscriptionUpdates.DisclosedQuantity,
+                FillId = orderSubscriptionUpdates.FillId,
+                FillQuantity = orderSubscriptionUpdates.FillQuantity,
+                FillPrice = orderSubscriptionUpdates.FillPrice,
+                Remarks = orderSubscriptionUpdates.Remarks,
+                AveragePriceOfTradedQuantity = orderSubscriptionUpdates.AvgPriceOfTradedQuantity,
+                FillDateTime = orderSubscriptionUpdates.FillDateTime,
                 ExchangeTime = orderSubscriptionUpdates.ExchangeTime,
                 BookLossPrice = orderSubscriptionUpdates.BookLossPrice,
                 BookProfitPrice = orderSubscriptionUpdates.BookProfitPrice,

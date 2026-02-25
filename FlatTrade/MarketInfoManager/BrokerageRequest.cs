@@ -1,6 +1,6 @@
-﻿using FlatTrade.Common.JsonConvertors;
-using FlatTrade.Common.Types.Base;
+﻿using Common.JsonConvertors;
 using Newtonsoft.Json;
+using FlatTrade.Types.Base;
 
 namespace FlatTrade.MarketInfoManager
 {

@@ -18,6 +18,7 @@ BEGIN
         UPDATE SET
             target.UserId                  = source.UserId,
             target.AccountId               = source.AccountId,
+            target.SymbolName              = source.SymbolName,
             target.KidId                   = source.KidId,
             target.TradingSymbol           = source.TradingSymbol,
             target.RejectionBy             = source.RejectionBy,
@@ -70,7 +71,7 @@ BEGIN
             target.MarketProtectionPercentage = source.MarketProtectionPercentage
         WHEN NOT MATCHED THEN
         INSERT (
-            UserId, AccountId, KidId, NorenOrderNumber, Exchange, TradingSymbol,
+            UserId, AccountId, SymbolName, KidId, NorenOrderNumber, Exchange, TradingSymbol,
             RejectionBy, SourceUid, CompanyName, Quantity, TotalFilled,
             MarginPriceFromModify, RTriggerPrice, RQuantity, ROrderRemaningQuantity,
             OrderStatus, InternalOrderStatus, IpAddress, EpochOrderEntryDateTime,
@@ -83,7 +84,7 @@ BEGIN
             NorenTime, ExchangeTime, AlgoId, ExchangeOrderNumber, amo, MarketProtectionPercentage
         )
         VALUES (
-            source.UserId, source.AccountId, source.KidId, source.NorenOrderNumber, source.Exchange, source.TradingSymbol,
+            source.UserId, source.AccountId, source.SymbolName, source.KidId, source.NorenOrderNumber, source.Exchange, source.TradingSymbol,
             source.RejectionBy, source.SourceUid, source.CompanyName, source.Quantity, source.TotalFilled,
             source.MarginPriceFromModify, source.RTriggerPrice, source.RQuantity, source.ROrderRemaningQuantity,
             source.OrderStatus, source.InternalOrderStatus, source.IpAddress, source.EpochOrderEntryDateTime,

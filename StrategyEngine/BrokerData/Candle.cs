@@ -1,14 +1,15 @@
 ﻿using FlatTrade;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Types;
-using FlatTrade.Common.Types.Base;
+using Common.Helpers;
 using FlatTrade.MarketInfoManager;
+using FlatTrade.Types;
+using FlatTrade.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Helpers;
 using StrategyEngine.Model;
 using StrategyEngine.Strategies;
 using System.Collections.Concurrent;
+using Common.Types;
 
 
 namespace StrategyEngine.BrokerData
@@ -28,9 +29,11 @@ namespace StrategyEngine.BrokerData
 
 
         private static IEnumerable<ChartInterval> _priceIntervals = [ChartInterval.One,
-                                                                    ChartInterval.Three, ChartInterval.Five,
-                                                                    ChartInterval.Ten, ChartInterval.Fifteen,
-                                                                    ChartInterval.Thirty, ChartInterval.Daily,
+                                                                    ChartInterval.Three,
+                                                                    ChartInterval.Five,
+                                                                    //ChartInterval.Ten, ChartInterval.Fifteen,
+                                                                    //ChartInterval.Thirty,
+                                                                    ChartInterval.Daily,
                                                                     ];
 
         public Candle(IConfiguration config, ContextAccessor contextAccessor, Api api, ILoggerFactory loggerFactory)
@@ -105,12 +108,12 @@ namespace StrategyEngine.BrokerData
                                         PseudoFlag = true
                                     };
                                     priceCandleSet.Add(pseudoCurrentCandle);
-                                    _logger.LogWarning("===========Shift Added: I:{0}, T:{1}, O:{2}, AC:{3}",
-                                    interval,
-                                    pseudoCurrentCandle.StartTimeStamp,
-                                    pseudoCurrentCandle.Open,
-                                    pseudoCurrentCandle.AccumulatedVolume);
-                                    holder.Add(pseudoCurrentCandle.Clone());
+                                    //_logger.LogDebug("===========Shift Added: I:{0}, T:{1}, O:{2}, AC:{3}",
+                                    //interval,
+                                    //pseudoCurrentCandle.StartTimeStamp,
+                                    //pseudoCurrentCandle.Open,
+                                    //pseudoCurrentCandle.AccumulatedVolume);
+                                    //holder.Add(pseudoCurrentCandle.Clone());
                                 }
                             }
                         }
@@ -139,9 +142,8 @@ namespace StrategyEngine.BrokerData
                 // Run your logic at the exact minute
                 if (now.Hour >= 9 && now.Hour <= 16)
                 {
-                    _logger.LogDebug("{0}:RunMinuteJobAsync Triggered for interval '{1}' @ {2} ", GetType().Name, chartInterval, DateTime.Now);
+                    //_logger.LogDebug("{0}:RunMinuteJobAsync Triggered for interval '{1}' @ {2} ", GetType().Name, chartInterval, DateTime.Now);
                     await ShiftCandles(chartInterval);
-                    //await WriteCandles();
                 }
             }
         }
@@ -213,14 +215,14 @@ namespace StrategyEngine.BrokerData
                         };
 
                         sortedSet.Add(newPriceCandleToAdd);
-                        _logger.LogWarning("====== Candle Added: I:{0}, T:{1}, V{2}, AccumVol:{3}, P:{4}, Pseudo:{5}, ActualTime:{6}, LatestP:{7}, PreviousP:{8}", interval, newPriceCandleToAdd.StartTimeStamp, newPriceCandleToAdd.Volume, newPriceCandleToAdd.AccumulatedVolume, newPriceCandleToAdd.Open, newPriceCandleToAdd.PseudoFlag, tradeDateTime, latestPrice, previousPrice);
+                        //_logger.LogDebug("====== Candle Added: I:{0}, T:{1}, V{2}, AccumVol:{3}, P:{4}, Pseudo:{5}, ActualTime:{6}, LatestP:{7}, PreviousP:{8}", interval, newPriceCandleToAdd.StartTimeStamp, newPriceCandleToAdd.Volume, newPriceCandleToAdd.AccumulatedVolume, newPriceCandleToAdd.Open, newPriceCandleToAdd.PseudoFlag, tradeDateTime, latestPrice, previousPrice);
                         
                         if(!newPriceCandleToAdd.PseudoFlag)
                             holder.Add(newPriceCandleToAdd.Clone());
                     }
                     else
                     {
-                        _logger.LogWarning("===== Candle Updated: I:{0}, T:{1}, P:{2}, V:{3}, Pseudo:{4}", interval, currentTimeInterval, latestPrice, currentDayVolume, latestPrice == decimal.MinValue);
+                        //_logger.LogDebug("===== Candle Updated: I:{0}, T:{1}, P:{2}, V:{3}, Pseudo:{4}", interval, currentTimeInterval, latestPrice, currentDayVolume, latestPrice == decimal.MinValue);
                         if (existingCandle.ApplyQuotes(currentTimeInterval, latestPrice, currentDayVolume, latestPrice == decimal.MinValue))
                             holder.Add(existingCandle.Clone());
                     }                   
@@ -235,10 +237,7 @@ namespace StrategyEngine.BrokerData
         }
 
         public async Task GetHistoricCandlesFromServerAsync(IEnumerable<SelectedSymbol> selection, int lastXDaysCandle = 5)
-        {
-            if (_priceIntervals.Contains(ChartInterval.Daily))
-                _logger.LogWarning("Daily interval candles cannot be fetched using TimePriceData API. Continuing for rest of the intervals...");
-
+        {            
             List<Task> tasks = [];
             var startDate = DateTime.Now.Date.GetBusinessDaysAgo(lastXDaysCandle);
             var endDate = DateTime.Now.Date.AddDays(1).ToLocalTime();

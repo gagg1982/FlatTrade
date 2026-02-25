@@ -1,4 +1,4 @@
-﻿using FlatTrade.Common.Types.Base;
+﻿using FlatTrade.Types.Base;
 using Newtonsoft.Json;
 
 namespace FlatTrade.HoldingsManager
@@ -63,6 +63,9 @@ namespace FlatTrade.HoldingsManager
         [JsonProperty("epi_done_qty")]
         public long ExchangePendingInstructionDoneQuantity { get; set; }
 
+        [JsonProperty("c")]
+        public decimal DailyClose { get; set; }
+
         public HoldingsResponse() { }
         protected HoldingsResponse(HoldingsResponse other)
         {
@@ -85,6 +88,7 @@ namespace FlatTrade.HoldingsManager
             TradeQuantity = other.TradeQuantity;
             ProductType = other.ProductType;
             ExchangePendingInstructionDoneQuantity = other.ExchangePendingInstructionDoneQuantity;
+            DailyClose = other.DailyClose;
         }
     }
 }

@@ -1,15 +1,18 @@
-﻿using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Transport;
-using FlatTrade.Common.Types.Base;
+﻿using Common.Helpers;
+using Common.Transport;
+using Common.Types;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 
+using Microsoft.Playwright;
+using OtpNet;
+
 namespace FlatTrade.AuthenticationManager
 {
-    public class Authentication(string apiKey, string redirectUri, string secret, string accessTokenFilePath, RestHttpClient httpClient, ILoggerFactory loggerFactory)
+    public class Authentication(string apiKey, string redirectUri, string secret, string accessTokenFilePath, string uid, string password, string qrCode, RestHttpClient httpClient, ILoggerFactory loggerFactory)
     {
         private readonly ILogger<Authentication> _logger = loggerFactory.CreateLogger<Authentication>();
         private static readonly string TOKEN_FILE_NAME = "FlatTrade.AccessToken.Token";
@@ -20,6 +23,9 @@ namespace FlatTrade.AuthenticationManager
 
         private AccessTokenInfo? _accessToken;
         private readonly string _apiKey = apiKey;
+        private readonly string _uid = uid;
+        private readonly string _password = password;
+        private readonly string _qrCode = qrCode;
 
         private readonly RestHttpClient _httpClient = httpClient;
 
@@ -74,6 +80,69 @@ namespace FlatTrade.AuthenticationManager
         }
 
         private async Task<(AccessTokenInfo?, string)> PerformAuthorizationFlowAsync()
+        {
+            if(string.IsNullOrEmpty(_qrCode) || string.IsNullOrEmpty(_uid) || string.IsNullOrEmpty(_password))
+                return await PerformAuthorizationFlowInteractiveAsync();
+            return await PerformAuthorizationFlowNonInteractiveAsync();            
+        }
+
+        private async Task<(AccessTokenInfo?, string)> PerformAuthorizationFlowNonInteractiveAsync()
+        {
+            string authUrl = EndPoints.GetAuthorizationUrl(_apiKey);
+
+            using var httpListener = new HttpListener();
+            httpListener.Prefixes.Add(_redirectUri);
+            httpListener.Start();
+
+            using var playwright = await Playwright.CreateAsync();
+            await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+            {
+                Headless = false // set true once stable
+            });
+
+            var context = await browser.NewContextAsync();
+            var page = await context.NewPageAsync();
+
+            // Navigate to authorization page
+            await page.GotoAsync(authUrl);
+
+            // ===== STEP 2: GENERATE TOTP =====
+            var totp = new Totp(Base32Encoding.ToBytes(_qrCode));
+            string otpCode = totp.ComputeTotp();
+
+            // ===== STEP 2: LOGIN =====
+            await page.FillAsync("input[id='input-20']", _uid);
+            await page.FillAsync("input[id='input-23']", _password);
+            await page.FillAsync("input[id='input-27']", otpCode);
+            await page.GetByRole(AriaRole.Button, new() { Name = "Log In" }).ClickAsync();
+            //await page.ClickAsync("button[id='sbmt']");
+
+
+            // ===== STEP 4: WAIT FOR REDIRECT =====
+            HttpListenerContext contextListener = await httpListener.GetContextAsync();
+            var request = contextListener.Request;
+            var response = contextListener.Response;
+
+            string? receivedCode = request.QueryString["code"];
+
+            string responseString = "<html><body>Authentication successful. You may close this window.</body></html>";
+            byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+            response.ContentLength64 = buffer.Length;
+            await response.OutputStream.WriteAsync(buffer);
+            response.OutputStream.Close();
+
+            httpListener.Stop();
+            await browser.CloseAsync();
+
+            if (string.IsNullOrEmpty(receivedCode))
+            {
+                return (null, "Authorization code not received");
+            }
+
+            return await ExchangeCodeForTokenAsync(receivedCode);
+        }
+
+        private async Task<(AccessTokenInfo?, string)> PerformAuthorizationFlowInteractiveAsync()
         {
             // Construct the authorization URL
             string authUrl = $"{EndPoints.GetAuthorizationUrl(_apiKey)}";
@@ -156,7 +225,7 @@ namespace FlatTrade.AuthenticationManager
             };
 
             var serializedContent = JsonConvert.SerializeObject(content);
-            var (tokenResponse, eMsg) = await _httpClient.PostMessageAsync<TokenResponse>(EndPoints.TokenAuthenticationUrl, serializedContent);
+            var (tokenResponse, eMsg) = await _httpClient.PostMessageAsync<TokenResponse, BaseErrorMessageResponse>(EndPoints.TokenAuthenticationUrl, serializedContent);
 
             if (tokenResponse != null && !string.IsNullOrEmpty(tokenResponse.AccessToken))
             {

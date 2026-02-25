@@ -1,7 +1,7 @@
 ﻿using FlatTrade.AuthenticationManager;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Throttle;
-using FlatTrade.Common.Transport;
+using Common.Helpers;
+using Common.Throttle;
+using Common.Transport;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 namespace FlatTrade.UserManager
@@ -35,7 +35,7 @@ namespace FlatTrade.UserManager
             var serializedUserDetails = JsonConvert.SerializeObject(userDetails);
 
             string requestParams = $"jData={serializedUserDetails}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<UserDetailsResponse>(EndPoints.UserDetailsUrl, requestParams);
+            return await _httpClient.PostMessageAsync<UserDetailsResponse, BaseErrorMessageResponse>(EndPoints.UserDetailsUrl, requestParams);
         }
     }
 }

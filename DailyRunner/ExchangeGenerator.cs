@@ -1,8 +1,8 @@
 ﻿using DailyRunner.Helpers;
 using FlatTrade;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Types;
-using FlatTrade.Common.Types.Base;
+using Common.Helpers;
+using Common.Types;
+using FlatTrade.Types.Base;
 using FlatTrade.UserManager;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;

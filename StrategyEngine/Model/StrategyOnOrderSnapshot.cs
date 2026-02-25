@@ -1,6 +1,4 @@
-﻿using FlatTrade.Common.Types.Base;
-
-namespace StrategyEngine.Model
+﻿namespace StrategyEngine.Model
 {
     internal record StrategyOnOrderSnapshot(OrderInfo orderInfo);
 }

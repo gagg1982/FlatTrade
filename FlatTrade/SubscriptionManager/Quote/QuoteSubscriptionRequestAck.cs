@@ -1,8 +1,10 @@
-﻿using FlatTrade.Common.JsonConvertors;
-using FlatTrade.Common.Types.Base;
+﻿using Common.JsonConvertors;
 using FlatTrade.ScripManager;
+using FlatTrade.Types.Base;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Serilog;
+using System.Runtime.InteropServices;
 
 namespace FlatTrade.SubscriptionManager.Quote
 {
@@ -98,8 +100,8 @@ namespace FlatTrade.SubscriptionManager.Quote
 
         public bool IsValidOhlcv()
         {
-            return DayClosePrice != decimal.MinValue &&  DayOpenPrice != decimal.MinValue &&
-                   DayHighPrice != decimal.MinValue && DayLowPrice != decimal.MaxValue;
+            return DayClosePrice > 0.0m && DayOpenPrice > 0.0m &&
+                   DayHighPrice > 0.0m && DayLowPrice > 0.0m;
         }
         public QuoteSubscriptionRequestAck() { }
         public QuoteSubscriptionRequestAck Update(QuoteSubscriptionRequestAck val)

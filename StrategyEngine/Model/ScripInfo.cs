@@ -1,5 +1,5 @@
-﻿using FlatTrade.Common.Types.Base;
-using FlatTrade.ScripManager;
+﻿using FlatTrade.ScripManager;
+using FlatTrade.Types.Base;
 
 namespace StrategyEngine.Model
 {

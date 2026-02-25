@@ -1,7 +1,7 @@
 ﻿using FlatTrade.AuthenticationManager;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Throttle;
-using FlatTrade.Common.Transport;
+using Common.Helpers;
+using Common.Throttle;
+using Common.Transport;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -42,7 +42,7 @@ namespace FlatTrade.TradeManager
             var serializedTradeBookRequest = JsonConvert.SerializeObject(tradeBookRequest);
 
             string requestParams = $"jData={serializedTradeBookRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<IEnumerable<TradeBookResponse>>(EndPoints.TradeBookUrl, requestParams);
+            return await _httpClient.PostMessageAsync<IEnumerable<TradeBookResponse>, BaseErrorMessageResponse>(EndPoints.TradeBookUrl, requestParams);
         }
 
         //[Throttle]
@@ -68,7 +68,7 @@ namespace FlatTrade.TradeManager
             var serializedPositionBookRequest = JsonConvert.SerializeObject(positionBookRequest);
 
             string requestParams = $"jData={serializedPositionBookRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<IEnumerable<PositionBookResponse>>(EndPoints.PositionBookUrl, requestParams);
+            return await _httpClient.PostMessageAsync<IEnumerable<PositionBookResponse>, BaseErrorMessageResponse>(EndPoints.PositionBookUrl, requestParams);
         }
 
         //[Throttle]
@@ -91,7 +91,7 @@ namespace FlatTrade.TradeManager
             var serializedProductConversionRequest = JsonConvert.SerializeObject(productConversionRequest);
 
             string requestParams = $"jData={serializedProductConversionRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<ProductConversionResponse>(EndPoints.ProductConversionUrl, requestParams);
+            return await _httpClient.PostMessageAsync<ProductConversionResponse, BaseErrorMessageResponse>(EndPoints.ProductConversionUrl, requestParams);
         }
     }
 }

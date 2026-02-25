@@ -1,0 +1,27 @@
+{
+    "Exchange": "NSE",
+    "Symbol": [ "ETERNAL", "HDFC" ],
+
+    "Database": {
+        "ConnectionString": "Server=dbserver\\appdb,1436;Database=TradingApplication;Integrated Security = True; TrustServerCertificate=True;"
+    },
+
+    "RMS": {
+        "MaxAmountAllocatedPerDay": 1000000, // 2,00,000 (actual amount) * 5 (leverage)
+        "MaxAmountAllocatedPerTrade": 20000, // 4,000 (actual amount) * 5 (leverage)
+        "MaxOpenPositionsPerScrip": 3,
+        "MaxPercentageLossPerTrade": 1, // 1% of MaxAmountAllocatedPerTrade
+        "MaxPercentageLossPerDay": 0.3 // 0.3% of MaxAmountAllocatedPerDay
+
+    },
+
+    "Strategy": {
+        "RiskRewardRatio": "1:1.5",
+
+        "WriteToDb": {
+            "Enabled": true,
+            "ChannelCapacity": 5,
+            "WriteBatchSizeInDb": 5000
+        }
+    }
+}

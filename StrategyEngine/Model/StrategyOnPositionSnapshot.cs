@@ -1,4 +1,4 @@
-﻿using FlatTrade.Common.Types.Base;
+﻿using FlatTrade.Types.Base;
 
 namespace StrategyEngine.Model
 {

@@ -1,6 +1,7 @@
-﻿using FlatTrade.Common.JsonConvertors;
-using FlatTrade.Common.Types.Base;
+﻿using Common.JsonConvertors;
+using FlatTrade.Types.Base;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace FlatTrade.SubscriptionManager.Order
 {
@@ -17,6 +18,9 @@ namespace FlatTrade.SubscriptionManager.Order
 
         [JsonProperty("exch")]
         public Exchange Exchange { get; set; }
+
+        [JsonProperty("cancelqty")]
+        public long CancelledQuantity { get; set; }
 
         [JsonProperty("tsym")]
         public string TradingSymbol { get; set; } = string.Empty;
@@ -62,6 +66,22 @@ namespace FlatTrade.SubscriptionManager.Order
 
         [JsonProperty("dscqty")]
         public long DisclosedQuantity { get; set; }
+
+        [JsonProperty("flqty")]
+        public long FillQuantity { get; set; }
+
+        [JsonProperty("flprc")]
+        public decimal FillPrice { get; set; }
+
+        [JsonProperty("flid")]
+        public long FillId { get; set; }
+
+        [JsonProperty("fltm")]
+        [JsonConverter(typeof(IsoDateTimeConverter))]
+        public DateTime FillDateTime { get; set; }
+
+        [JsonProperty("avgprc")]
+        public decimal AvgPriceOfTradedQuantity { get; set; }
 
         [JsonProperty("exch_tm")]
         [JsonConverter(typeof(CustomIsoDateTimeConverter))]

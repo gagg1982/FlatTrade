@@ -1,5 +1,5 @@
-﻿using FlatTrade.Common.Types.Base;
-using FlatTrade.OrderManager;
+﻿using FlatTrade.OrderManager;
+using FlatTrade.Types.Base;
 
 namespace FlatTrade.Test
 {

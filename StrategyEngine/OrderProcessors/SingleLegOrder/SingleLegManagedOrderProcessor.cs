@@ -2,8 +2,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
-using StrategyEngine.RMS;
-using StrategyEngine.Strategies;
 
 namespace StrategyEngine.OrderProcessors.SingleLegOrder
 {
@@ -13,38 +11,31 @@ namespace StrategyEngine.OrderProcessors.SingleLegOrder
     // Automatically manages the life of other order on the completion of one in above orders.
     // It has equivalent support from Broker: Check MultiLegOrderProcessor class which is straight and simple.
     // For that it needs to subscribe for order updates.
-
-    class OrderHolder
-    {
-        public required OrderInfo BrokerParentOrder { get; set; }
-        public required OrderInfo BrokerStopLossOrder { get; set; }
-        public required OrderInfo BrokerTargetProfitOrder { get; set; }
-    }
-    internal class SingleLegManagedOrderProcessor(IConfiguration config, Api api,ILoggerFactory loggerFactory)
-        : AsbtractOrderProcessor<SingleLegManagedOrderProcessor>(config, api, loggerFactory)
+    
+    internal class SingleLegManagedOrderProcessor(IConfiguration config, Api api, ILoggerFactory loggerFactory) :
+        SingleLegBaseManagedOrderProcessor(config, api, loggerFactory)
 
     {
-        protected override string Name => $"{GetType().Name}";
+        ExchangeOrderProcessor _exchangeOrderProcessor = new ExchangeOrderProcessor(config, api, loggerFactory);
 
-        protected override Task OnUpdateInternal(StrategyOnOrderSnapshot input)
+        protected override string Name => $"{GetType().Name}";       
+
+        public override async Task CancelOrder(string strategyName, CancelOrder cancelOrder)
         {
-            return base.OnUpdateInternal(input);
+            await base.CancelOrder(strategyName, cancelOrder);
+            await _exchangeOrderProcessor.CancelOrder(strategyName, cancelOrder);
         }
 
-        public override Task CancelOrder(CancelOrder cancelOrder)
+        public override async Task CreateOrder(string strategyName, CreateOrder createOrder)
         {
-            throw new NotImplementedException();
+            await base.CreateOrder(strategyName, createOrder);
+            await _exchangeOrderProcessor.CreateOrder(strategyName, createOrder);
         }
 
-        public override Task CreateOrder(CreateOrder createOrder)
+        public override async Task ModifyOrder(string strategyName, ModifyOrder modifyOrder)
         {
-            throw new NotImplementedException();
+            await base.ModifyOrder(strategyName, modifyOrder);
+            await _exchangeOrderProcessor.ModifyOrder(strategyName, modifyOrder);
         }
-
-        public override Task ModifyOrder(ModifyOrder modifyOrder)
-        {
-            throw new NotImplementedException();
-        }
-        
     }
 }

@@ -4,7 +4,7 @@
     using Common.Transport;
     using FlatTrade.AlertManager;
     using FlatTrade.AuthenticationManager;
-    using FlatTrade.Common.Throttle;
+    using Common.Throttle;
     using FlatTrade.FundManager;
     using FlatTrade.HoldingsManager;
     using FlatTrade.LimitsManager;
@@ -50,7 +50,7 @@
         public Funds Funds => _funds;
         public MarketInfo MarketInfo => _marketInfo;
 
-        public Api(string apiKey, string redirectUrl, string secret, string accessTokenFilePath, ILoggerFactory? loggerFactory, IInterceptor? throttlerInterceptor)
+        public Api(string apiKey, string redirectUrl, string secret, string accessTokenFilePath, string uid, string password, string qrCode, ILoggerFactory? loggerFactory, IInterceptor? throttlerInterceptor)
         {
             loggerFactory ??= new LoggerFactory();
             _logger = loggerFactory.CreateLogger<Api>();
@@ -59,7 +59,7 @@
             var interceptor = throttlerInterceptor ?? new NullThrottleInterceptor();
 
 
-            _authentication = proxyGen.CreateClassProxy<Authentication>([apiKey, redirectUrl, secret, accessTokenFilePath, _client, loggerFactory], interceptor);
+            _authentication = proxyGen.CreateClassProxy<Authentication>([apiKey, redirectUrl, secret, accessTokenFilePath, uid, password, qrCode, _client, loggerFactory], interceptor);
 
             _user = proxyGen.CreateClassProxy<User>([_authentication, _client, loggerFactory], interceptor);
             _order = proxyGen.CreateClassProxy<Order>([this, _client, loggerFactory], interceptor);

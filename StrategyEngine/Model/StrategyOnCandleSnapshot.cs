@@ -1,5 +1,6 @@
-﻿using FlatTrade.Common.Types;
-using FlatTrade.Common.Types.Base;
+﻿using Common.Types;
+using FlatTrade.Types;
+using FlatTrade.Types.Base;
 
 namespace StrategyEngine.Model
 {

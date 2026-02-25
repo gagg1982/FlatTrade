@@ -14,17 +14,17 @@ namespace StrategyEngine.OrderProcessors.SingleLegOrder
     {
         protected override string Name => $"{GetType().Name}";
 
-        public override Task CancelOrder(CancelOrder cancelOrder)
+        public override Task CancelOrder(string strategyName, CancelOrder cancelOrder)
         {
             throw new NotImplementedException();
         }
 
-        public override Task CreateOrder(CreateOrder createOrder)
+        public override Task CreateOrder(string strategyName, CreateOrder createOrder)
         {
             throw new NotImplementedException();
         }
 
-        public override Task ModifyOrder(ModifyOrder modifyOrder)
+        public override Task ModifyOrder(string strategyName, ModifyOrder modifyOrder)
         {
             throw new NotImplementedException();
         }

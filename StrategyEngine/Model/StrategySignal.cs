@@ -1,15 +1,12 @@
-﻿using FlatTrade.Common.Types.Base;
-using FlatTrade.TradeManager;
+﻿using FlatTrade.Types.Base;
 
 namespace StrategyEngine.Model
 {
     public class DecisionMakingInputs
     {
-        TradeBookRequest? TradeBookRequest { get; set; }
-        PositionBookRequest? PositionBookRequest { get; set; }
-        ScripInfo? ScripInfo { get; set; }
-        OrderInfo? OrderInfo { get; set; }
+        public required string DecisionMakingRemarks;
     }
+
     public class ModifyOrder : CreateOrder
     {
         public required long NorenOrderNumber { get; set; } = 0;
@@ -24,30 +21,43 @@ namespace StrategyEngine.Model
 
     public class CreateOrder
     {
+        public readonly Guid InternalOrderId = Guid.NewGuid();
         public required long Token { get; set; }
         public required string TradingSymbol { get; set; }
         public required Exchange Exchange { get; set; }
-        public required RetentionType RetentionType { get; set; }
-        public required PriceType PriceType { get; set; }
-        public required ProductType ProductType { get; set; }
+        public RetentionType RetentionType { get; set; } = RetentionType.DAY;
+        public PriceType PriceType { get; set; } = PriceType.Limit;
+        public ProductType ProductType { get; set; } = ProductType.IntraDay;
         public required TransactionType TransactionType { get; set; }
-        public required decimal MarketProtectionInPercent { get; set; }
+        public decimal MarketProtectionInPercent { get; set; } = 0.0m;
 
         public required decimal LimitPrice { get; set; }
-        public required decimal TriggerPrice { get; set; }
+        public decimal TriggerPrice { get; set; } = 0.0m;
         public required decimal DifferentialSLPrice { get; set; }
         public decimal DifferentialTrailingTicks { get; set; }
         public required decimal DifferentialProfitPrice { get; set; }
         public required int Quantity { get; set; }
     }
 
-    public class OutputDecision
+    public abstract record OutputDecision
     {
-        public required OrderEventType OrderEventType { get; set; }
-        public CreateOrder? CreateOrder { get; set; } = null;
-        public ModifyOrder? ModifyOrder { get; set; } = null;
-        public CancelOrder? CancelOrder { get; set; } = null;
+        public abstract OrderEventType OrderEventType { get; }
+
+        public sealed record Create(CreateOrder Order) : OutputDecision
+        {
+            public override OrderEventType OrderEventType => OrderEventType.CreateOrder;
+        }
+
+        public sealed record Modify(ModifyOrder Order) : OutputDecision
+        {
+            public override OrderEventType OrderEventType => OrderEventType.ModifyOrder;
+        }
+
+        public sealed record Cancel(CancelOrder Order) : OutputDecision
+        {
+            public override OrderEventType OrderEventType => OrderEventType.CancelOrder;
+        }
     }
 
-    public record StrategySignal(string StrategyName, OutputDecision OutputDecision, DecisionMakingInputs DecisionMakingInputs);
+    public record StrategySignal(Guid StrategySignalId, string StrategyName, OutputDecision OutputDecision, DecisionMakingInputs DecisionMakingInputs);
 }

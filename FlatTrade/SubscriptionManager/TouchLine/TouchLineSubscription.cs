@@ -1,8 +1,8 @@
-﻿using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Types.Base;
-using FlatTrade.SubscriptionManager.Helper;
+﻿using Common.Helpers;
+using FlatTrade.Types.Base;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using HelperUtility = FlatTrade.SubscriptionManager.Helper.HelperUtility;
 
 namespace FlatTrade.SubscriptionManager.TouchLine
 {

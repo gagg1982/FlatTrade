@@ -1,5 +1,5 @@
-﻿using FlatTrade.Common.Types.Base;
-using FlatTrade.HoldingsManager;
+﻿using FlatTrade.HoldingsManager;
+using FlatTrade.Types.Base;
 
 namespace FlatTrade.Test
 {

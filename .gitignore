@@ -39,3 +39,14 @@
 /StrategyEngine/30_RVNL-EQ_candles.csv
 /StrategyEngine/3_RVNL-EQ_candles.csv
 /StrategyEngine/5_RVNL-EQ_candles.csv
+/Logs
+/CorporateActions/__pycache__
+/Upstox/obj/Release/net8.0
+/Upstox/obj/Debug/net8.0
+/Upstox/bin
+/Upstox/obj
+/PythonLibrary/python_lib/__pycache__
+/PythonLibrary/python_lib.egg-info
+/PythonLibrary/python_lib.egg-info/dependency_links.txt
+/NpsNav/__pycache__
+/MissingCandles/__pycache__

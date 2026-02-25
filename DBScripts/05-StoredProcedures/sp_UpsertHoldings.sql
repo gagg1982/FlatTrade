@@ -45,7 +45,8 @@ BEGIN
                     TARGET.Exchange2                              = SRC.Exchange2,
                     TARGET.TradingSymbol2                         = SRC.TradingSymbol2,
                     TARGET.Token2                                 = SRC.Token2,
-                    TARGET.ModifiedAt                              = SYSUTCDATETIME()
+                    Target.DailyClose                             = SRC.DailyClose,
+                    TARGET.ModifiedAt                             = SYSUTCDATETIME()
 
             WHEN NOT MATCHED BY TARGET THEN
                 INSERT (
@@ -70,6 +71,7 @@ BEGIN
 
                     Exchange1, TradingSymbol1, Token1,
                     Exchange2, TradingSymbol2, Token2,
+                    DailyClose,
                     ModifiedAt
                 )
                 VALUES (
@@ -93,6 +95,7 @@ BEGIN
                     SRC.ExchangePendingInstructionDoneQuantity,
                     SRC.Exchange1, SRC.TradingSymbol1, SRC.Token1,
                     SRC.Exchange2, SRC.TradingSymbol2, SRC.Token2,
+                    SRC.DailyClose,
                     SYSUTCDATETIME()
                 );
 

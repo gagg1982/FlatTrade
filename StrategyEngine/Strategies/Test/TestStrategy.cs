@@ -1,17 +1,19 @@
 ﻿using FlatTrade;
-using FlatTrade.Common.Types.Base;
+using FlatTrade.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
 using System.Collections.Concurrent;
-using TicTacTec.TA.Library;
 
 namespace StrategyEngine.Strategies.Test
 {
     internal class TestStrategy(IConfiguration config, Api api, ILoggerFactory loggerFactory) 
-        : AbstractStrategy<TestStrategy>(config, api, loggerFactory)
+        : AbstractStrategy<TestStrategy>(config, api, loggerFactory), IAsyncDisposable, IDisposable
     {
-        private bool _disposed = false;
+        private ConcurrentDictionary<string, DateTime> _lastAccessTime = [];
+        private TimeSpan _startTradingTime = new TimeSpan(9,15,0);
+        private TimeSpan _endTradingTime = new TimeSpan(15,14,0);
+        private decimal _riskRewardRatio = 1.5m;
         protected override string Name => $"{GetType().Name}";
 
         private readonly ConcurrentDictionary<(ChartInterval, string), StreamWriter> _intervalWriter = [];
@@ -37,25 +39,56 @@ namespace StrategyEngine.Strategies.Test
 
             return Task.FromResult<StrategySignal?>(default);
         }
-        
-        public virtual void Dispose()
-        {
-            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
-            GC.SuppressFinalize(this);
-        }
-        
-        public virtual async ValueTask DisposeAsync()
-        {
-            await DisposeAsyncCore();
-            GC.SuppressFinalize(this);
-        }
 
-        private async ValueTask DisposeAsyncCore()
+        protected override Task<StrategySignal?> ProcessInternal(StrategyOnTouchLineSnapshot input)
+        {
+            var now = DateTime.Now;
+
+            if (now.TimeOfDay >= _startTradingTime 
+                && now.TimeOfDay <= _endTradingTime 
+                && now >= _lastAccessTime.GetOrAdd(input.updates.TradingSymbol, DateTime.MinValue).AddMinutes(5)
+                && !AnyPendingOrder(input.updates.TradingSymbol, input.updates.Token)
+                && !AnyPendingPosition(input.updates.TradingSymbol, ProductType.IntraDay))
+            {
+                _lastAccessTime.AddOrUpdate(input.updates.TradingSymbol, now, (_,_) => now);
+                int value = Random.Shared.Next(0, 2);
+
+                return Task.FromResult<StrategySignal?>(
+                    new StrategySignal(Guid.NewGuid(),
+                        Name,
+                        new OutputDecision.Create
+                        (
+                            new CreateOrder
+                            {
+                                DifferentialProfitPrice = 2,
+                                DifferentialSLPrice = 1,
+                                LimitPrice = value == 0 ? input.updates.LastTradePrice - input.updates.TickSize:
+                                                          input.updates.LastTradePrice + input.updates.TickSize,
+                                Exchange = input.updates.Exchange,
+                                TradingSymbol = input.updates.TradingSymbol,
+                                Token = input.updates.Token,
+                                TransactionType = value == 0 ? TransactionType.Buy : TransactionType.Sell,
+                                Quantity = 10,
+                                //DifferentialTrailingTicks = 1.15m,
+                                //MarketProtectionInPercent = 0.01m,
+                                
+                                ProductType = ProductType.BracketOrder,
+                                
+                                //TriggerPrice = value == 0 ? input.updates.LastTradePrice - input.updates.TickSize :
+                                //                            input.updates.LastTradePrice + input.updates.TickSize
+                            }
+                        ),
+                        new DecisionMakingInputs { DecisionMakingRemarks = "testStrategy, will add more input params later"}
+                    ));
+            }
+
+            return Task.FromResult<StrategySignal?>(default);
+        }
+       
+        protected override  async ValueTask DisposeAsyncCore()
         {
             if (_disposed)
                 return;
-
-            _disposed = true;
 
             // Dispose async resources
             foreach(var (key,writer) in _intervalWriter)
@@ -63,6 +96,7 @@ namespace StrategyEngine.Strategies.Test
                 if (writer is not null)
                     await writer.DisposeAsync();
             }
+            await base.DisposeAsyncCore().ConfigureAwait(false);
 
             _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
             // Dispose other sync-only resources here (e.g., timers, files)

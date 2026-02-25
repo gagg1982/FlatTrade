@@ -22,7 +22,15 @@
             "Name": "MaxLossPerOrder",
             "Enabled": false,
             "ThresholdAmount": 100
-        }        
-    ]
-    
+        }
+    ],
+
+    "Rms": {
+        "WriteToDb": {
+            "Enabled": true,
+            "ChannelCapacity": 5,
+            "WriteBatchSizeInDb": 5000
+        }
+    }
+
 }

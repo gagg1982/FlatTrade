@@ -1,4 +1,4 @@
-﻿using FlatTrade.Common.Types.Base;
+﻿using FlatTrade.Types.Base;
 using Newtonsoft.Json;
 
 namespace FlatTrade.SubscriptionManager.TouchLine
@@ -13,6 +13,12 @@ namespace FlatTrade.SubscriptionManager.TouchLine
 
         [JsonProperty("pc")]
         public decimal LastTradePricePercentageChange { get; set; }
+
+        [JsonProperty("h")]
+        public decimal DailyHighPrice { get; set; }
+
+        [JsonProperty("l")]
+        public decimal DailyLowPrice { get; set; }
 
         [JsonProperty("lp")]
         public decimal LastTradePrice { get; set; } = decimal.MinValue;
@@ -31,5 +37,11 @@ namespace FlatTrade.SubscriptionManager.TouchLine
 
         [JsonProperty("v")]
         public long Volume { get; set; } = 0;
+
+        [JsonProperty("ap")]
+        public decimal AverageTradePrice { get; set; }
+
+        [JsonProperty("toi")]
+        public long IntervalIoChange { get; set; }
     }
 }

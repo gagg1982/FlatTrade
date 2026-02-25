@@ -1,4 +1,4 @@
-﻿using FlatTrade.Common.JsonConvertors;
+﻿using Common.JsonConvertors;
 using Newtonsoft.Json;
 
 namespace FlatTrade.AlertManager

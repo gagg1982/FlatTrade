@@ -1,7 +1,10 @@
-﻿using FlatTrade;
+﻿using Common.Helpers;
+using FlatTrade;
+using FlatTrade.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
+using System.Collections.Concurrent;
 
 
 namespace StrategyEngine.OrderProcessors
@@ -14,7 +17,7 @@ namespace StrategyEngine.OrderProcessors
 
         protected readonly IConfiguration Config;
         protected readonly Api Api;
-
+        
         internal AsbtractOrderProcessor(IConfiguration config, Api api, ILoggerFactory loggerFactory)
         {
             _loggerFactory = loggerFactory ?? new LoggerFactory();
@@ -50,9 +53,9 @@ namespace StrategyEngine.OrderProcessors
         protected virtual Task OnUpdateInternal(StrategyOnQuoteSnapshot input) => Task.CompletedTask;
         protected virtual Task OnUpdateInternal(StrategyOnTouchLineSnapshot input) => Task.CompletedTask;
 
-        public abstract Task CancelOrder(CancelOrder cancelOrder);
-        public abstract Task ModifyOrder(ModifyOrder modifyOrder);
-        public abstract Task CreateOrder(CreateOrder createOrder);
+        public abstract Task CancelOrder(string strategyName, CancelOrder cancelOrder);
+        public abstract Task ModifyOrder(string strategyName, ModifyOrder modifyOrder);
+        public abstract Task CreateOrder(string strategyName, CreateOrder createOrder);
 
     }
 }

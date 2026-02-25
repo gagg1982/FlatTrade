@@ -1,6 +1,6 @@
-﻿using FlatTrade;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Types.Base;
+﻿using Common.Helpers;
+using FlatTrade;
+using FlatTrade.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
@@ -37,34 +37,51 @@ namespace StrategyEngine.RMS
 
             _maxQuantityPerOrder = rule.GetInt("ThresholdQuantity");
         }
-        public override Task<bool> IsValidationSucceeded(StrategySignal strategySignal)
+        public override async Task<bool> IsValidationSucceeded(StrategySignal strategySignal)
         {
             if (!_enabled)
-                return Task.FromResult(true);
+                return true;
 
-            if (strategySignal.OutputDecision.OrderEventType == OrderEventType.CreateOrder)                
+            var validationSucceeded = true;
+            var comments = string.Empty;
+
+            switch (strategySignal.OutputDecision)
             {
-                if (strategySignal.OutputDecision.CreateOrder!.Quantity > _maxQuantityPerOrder)
-                {
-                    _logger.LogWarning("RMS:Rule [{0}] Validation Failed: Order quantity [{1}] > Max quantity allowed [{2}]",
-                        Name,
-                        strategySignal.OutputDecision.CreateOrder!.Quantity,
-                        _maxQuantityPerOrder);
-                    return Task.FromResult(false);
-                }
+                case OutputDecision.Create create:
+                    if (create.Order.Quantity > _maxQuantityPerOrder)
+                    {
+                        comments = string.Format($"RMS:Rule [{Name}] Validation Failed:" +
+                                                 $" Order quantity [{create.Order.Quantity}] >" +
+                                                 $" Max quantity allowed [{_maxQuantityPerOrder}]");
+
+                        _logger.LogWarning(comments);
+                        validationSucceeded = false;
+                    }
+                    break;
+
+                case OutputDecision.Modify modify:
+                    if (modify.Order.Quantity > _maxQuantityPerOrder)
+                    {
+                        comments = string.Format($"RMS:Rule [{Name}] Validation Failed:" +
+                                                 $" Order quantity [{modify.Order.Quantity}] >" +
+                                                 $" Max quantity allowed [{_maxQuantityPerOrder}]");
+
+                        _logger.LogWarning(comments);
+                        validationSucceeded = false;
+                    }
+                    break;
+
+                case OutputDecision.Cancel:
+                    // No quantity validation required
+                    break;
             }
-            else if (strategySignal.OutputDecision.OrderEventType == OrderEventType.ModifyOrder)
+
+            if (!validationSucceeded)
             {
-                if (strategySignal.OutputDecision.ModifyOrder!.Quantity > _maxQuantityPerOrder)
-                {
-                    _logger.LogWarning("RMS:Rule [{0}] Validation Failed: Order quantity [{1}] > Max quantity allowed [{2}]",
-                        Name,
-                        strategySignal.OutputDecision.CreateOrder!.Quantity,
-                        _maxQuantityPerOrder);
-                    return Task.FromResult(false);
-                }
+                await base.WriteToDb(strategySignal, Name, comments );
             }
-            return Task.FromResult(true);
+            return validationSucceeded;
+
         }
 
         protected override Task OnUpdateInternal(StrategyOnOrderSnapshot input)
@@ -80,7 +97,7 @@ namespace StrategyEngine.RMS
             {
                 _cancelledOrders.Add(input.orderInfo.NorenOrderNumber);
                 _logger.LogInformation("RMS:Rule [{0}] Order [{1}] cancellation request submitted during update.", Name, input.orderInfo.NorenOrderNumber);
-                _tasks.Add(OrderProcessor.CancelOrder(new CancelOrder { NorenOrderNumber = input.orderInfo.NorenOrderNumber }));
+                _tasks.Add(OrderProcessor.CancelOrder(Name, new CancelOrder { NorenOrderNumber = input.orderInfo.NorenOrderNumber }));
                 return Task.CompletedTask;
             }
 
@@ -94,7 +111,7 @@ namespace StrategyEngine.RMS
 
             foreach (var norenOrderNumber in _cancelledOrders.Snapshot())
             {
-                _tasks.Add(OrderProcessor.CancelOrder(new CancelOrder { NorenOrderNumber = norenOrderNumber }));
+                _tasks.Add(OrderProcessor.CancelOrder(Name, new CancelOrder { NorenOrderNumber = norenOrderNumber }));
             }
 
             if(_cancelledOrders.Snapshot().Contains(input.orderInfo.NorenOrderNumber))

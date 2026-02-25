@@ -1,7 +1,7 @@
 ﻿using FlatTrade.AuthenticationManager;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Throttle;
-using FlatTrade.Common.Transport;
+using Common.Helpers;
+using Common.Throttle;
+using Common.Transport;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -40,7 +40,7 @@ namespace FlatTrade.LimitsManager
             var serializedUserDetails = JsonConvert.SerializeObject(limits);
 
             string requestParams = $"jData={serializedUserDetails}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<LimitsResponse>(EndPoints.LimitsUrl, requestParams);
+            return await _httpClient.PostMessageAsync<LimitsResponse, BaseErrorMessageResponse>(EndPoints.LimitsUrl, requestParams);
         }
     }
 }

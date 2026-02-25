@@ -1,5 +1,5 @@
 ﻿using FlatTrade;
-using FlatTrade.Common.Types.Base;
+using Common.Types;
 using FlatTrade.HoldingsManager;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;

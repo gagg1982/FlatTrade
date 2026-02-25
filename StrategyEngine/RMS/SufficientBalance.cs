@@ -1,14 +1,13 @@
 ﻿using FlatTrade;
-using FlatTrade.Common.Types.Base;
 using FlatTrade.MarketInfoManager;
 using FlatTrade.OrderManager;
-using HtmlAgilityPack;
+using FlatTrade.Types.Base;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StrategyEngine.Model;
 using StrategyEngine.OrderProcessors;
 using System.Collections.Concurrent;
-using System.Diagnostics.Eventing.Reader;
+using System.Xml.Linq;
 
 namespace StrategyEngine.RMS
 {
@@ -51,76 +50,117 @@ namespace StrategyEngine.RMS
                 return true;            
 
             OrderMarginRequest? orderMarginRequest = null;
-            if (strategySignal.OutputDecision.OrderEventType == OrderEventType.CreateOrder)
-            {
-                if (!ValidateProductTypePriceTypeTransactionTypeTriggerAndLimitPriceCombination(strategySignal.OutputDecision.CreateOrder!.TransactionType,
-                                                                            strategySignal.OutputDecision.CreateOrder!.ProductType,
-                                                                            strategySignal.OutputDecision.CreateOrder!.PriceType,
-                                                                            strategySignal.OutputDecision.CreateOrder!.TriggerPrice,
-                                                                            strategySignal.OutputDecision.CreateOrder!.LimitPrice))
-                    return false;
+            BrokerageResponse? brokerageResponse = null;
+            string errMsg = string.Empty;
 
-                orderMarginRequest = CreateOrderMarginRequest(strategySignal.OutputDecision.CreateOrder!);
-            }
-            else if (strategySignal.OutputDecision.OrderEventType == OrderEventType.ModifyOrder)
+            var validationSucceeded = true;
+            var comments = string.Empty;
+
+            switch (strategySignal.OutputDecision)
             {
-                if (!ValidateProductTypePriceTypeTransactionTypeTriggerAndLimitPriceCombination(strategySignal.OutputDecision.ModifyOrder!.TransactionType,
-                                                                            strategySignal.OutputDecision.ModifyOrder!.ProductType,
-                                                                            strategySignal.OutputDecision.ModifyOrder!.PriceType,
-                                                                            strategySignal.OutputDecision.ModifyOrder!.TriggerPrice,
-                                                                            strategySignal.OutputDecision.ModifyOrder!.LimitPrice))
-                    return false;
-                orderMarginRequest = ModifyOrderMarginRequest(strategySignal.OutputDecision.ModifyOrder!);
-            }
-            else
-            {
-                return true;
+                case OutputDecision.Create create:
+                    (validationSucceeded, comments) = ValidateProductTypePriceTypeTransactionTypeTriggerAndLimitPriceCombination(create.Order.TransactionType,
+                                                                                                    create.Order.ProductType,
+                                                                                                    create.Order.PriceType,
+                                                                                                    create.Order.TriggerPrice,
+                                                                                                    create.Order.LimitPrice);
+                    if (!validationSucceeded)
+                        break;
+                    
+                    orderMarginRequest = CreateOrderMarginRequest(create.Order!);
+                    var brokerageResult = await Api.MarketInfo.GetBrokerageAsync(create.Order.TransactionType,
+                                                                                   create.Order.Exchange,
+                                                                                   create.Order.ProductType,
+                                                                                   create.Order.TradingSymbol,
+                                                                                   create.Order.LimitPrice,
+                                                                                   create.Order.Quantity);
+                    brokerageResponse = brokerageResult.Item1;
+                    errMsg = brokerageResult.Item2;
+
+                    break;
+
+                case OutputDecision.Modify modify:
+                    (validationSucceeded, comments) = ValidateProductTypePriceTypeTransactionTypeTriggerAndLimitPriceCombination(modify.Order.TransactionType,
+                                                                                                        modify.Order.ProductType,
+                                                                                                        modify.Order.PriceType,
+                                                                                                        modify.Order.TriggerPrice,
+                                                                                                        modify.Order.LimitPrice);
+                    if (!validationSucceeded)
+                        break;
+
+                    orderMarginRequest = ModifyOrderMarginRequest(modify.Order!);
+                    brokerageResult = await Api.MarketInfo.GetBrokerageAsync(modify.Order.TransactionType,
+                                                                                    modify.Order.Exchange,
+                                                                                    modify.Order.ProductType,
+                                                                                    modify.Order.TradingSymbol,
+                                                                                    modify.Order.LimitPrice,
+                                                                                    modify.Order.Quantity);
+                    brokerageResponse = brokerageResult.Item1;
+                    errMsg = brokerageResult.Item2;
+
+                    break;
+
+                case OutputDecision.Cancel cancel:
+                    break;
+
+                default:
+                    break;
             }
 
             if (orderMarginRequest is null)
-                return false;
-
-            var (orderMargin, msg) = await Api.Order.GetOrderMarginAsync(orderMarginRequest);                                                   
-            if (orderMargin is null)
-            {                
-                _logger.LogWarning("RMS:Rule [{0}] Validation Failed: Unable to get OrderMargin info. Error: {1}", Name, msg);
-                return false;
-            }
-
-            decimal totalCharges = 0;
-            if (strategySignal.OutputDecision.OrderEventType == OrderEventType.CreateOrder)
             {
-                var (brokerageResponse, msg1) = await Api.MarketInfo.GetBrokerageAsync(strategySignal.OutputDecision.CreateOrder!.TransactionType,
-                                                                           strategySignal.OutputDecision.CreateOrder!.Exchange,
-                                                                           strategySignal.OutputDecision.CreateOrder!.ProductType,
-                                                                           strategySignal.OutputDecision.CreateOrder!.TradingSymbol,
-                                                                           strategySignal.OutputDecision.CreateOrder!.LimitPrice,
-                                                                           strategySignal.OutputDecision.CreateOrder!.Quantity);
-                if (brokerageResponse is null)
+                validationSucceeded = false;
+                comments = errMsg;
+            }
+            else {
+                var (orderMargin, msg) = await Api.Order.GetOrderMarginAsync(orderMarginRequest);
+                if (orderMargin is null)
                 {
-                    _logger.LogWarning("RMS:Rule [{0}] Validation Failed: Unable to get brokerage info. Error: {1}", Name, msg1);
-                    return false;
+                    comments = string.Format("RMS:Rule [{0}] Validation Failed: Unable to get OrderMargin info. Error: {1}", Name, msg);
+                    _logger.LogWarning(comments);
+                    validationSucceeded = false;
                 }
-                totalCharges = brokerageResponse.TotalCharges;
+
+                else
+                {
+                    decimal totalCharges = 0;
+                    if (brokerageResponse is null)
+                    {
+                        comments = string.Format("RMS:Rule [{0}] Validation Failed: Unable to get brokerage info. Error: {1}", Name, errMsg);
+                        _logger.LogWarning(comments);
+                        validationSucceeded = false;
+                    }
+                    else
+                    {
+                        totalCharges = brokerageResponse.TotalCharges;
+                        var totalTradeFees = _totalTradeFees.Values.Sum();
+
+                        var availableAfterOrderFullFillment = (_initialCashAllocated - _bufferReservedFromInitialCashAllocation) - (orderMargin.TotalMarginUsed + totalCharges + totalTradeFees);
+                        if (availableAfterOrderFullFillment < 0)
+                        {
+                            comments =  string.Format("RMS:Rule [{0}] Validation Failed: Insufficient balance for order. Required: {1}, Available: {2}", Name, orderMargin.OrderMargin + totalCharges, _initialCashAllocated - _bufferReservedFromInitialCashAllocation - orderMargin.MarginUsedPreviously - totalTradeFees);
+                            _logger.LogWarning(comments);
+                           validationSucceeded = false;
+                        }
+                    }
+                }
             }
 
-            var totalTradeFees = _totalTradeFees.Values.Sum();
-
-            var availableAfterOrderFullFillment = (_initialCashAllocated - _bufferReservedFromInitialCashAllocation) - (orderMargin.TotalMarginUsed + totalCharges + totalTradeFees);
-            if (availableAfterOrderFullFillment < 0 )
+            if (!validationSucceeded)
             {
-                _logger.LogWarning("RMS:Rule [{0}] Validation Failed: Insufficient balance for order. Required: {1}, Available: {2}", Name, orderMargin.OrderMargin + totalCharges, _initialCashAllocated - _bufferReservedFromInitialCashAllocation - orderMargin.MarginUsedPreviously - totalTradeFees);
-                return false;
+                await base.WriteToDb(strategySignal, Name, comments);
             }
-            return true;
+            return validationSucceeded;
         }
 
-        private bool ValidateProductTypePriceTypeTransactionTypeTriggerAndLimitPriceCombination(TransactionType transactionType, 
+        private (bool,string) ValidateProductTypePriceTypeTransactionTypeTriggerAndLimitPriceCombination(TransactionType transactionType, 
                                                                             ProductType productType,
                                                                             PriceType priceType, 
                                                                             decimal triggerPrice,
                                                                             decimal limitPrice)
         {
+            var errMsg = string.Empty;
+
             switch (priceType)
             {
                 case PriceType.StopLossLimit:
@@ -128,70 +168,75 @@ namespace StrategyEngine.RMS
                     {
                         if (triggerPrice >= limitPrice)
                         {
-                            _logger.LogError("RMS:Rule [{0}] Validation Failed. For PriceType [{1}], TransactionType [{2}], TriggerPrice [{3}] should be less than LimitPrice [{4}]",
+                            errMsg = string.Format("RMS:Rule [{0}] Validation Failed. For PriceType [{1}], TransactionType [{2}], TriggerPrice [{3}] should be less than LimitPrice [{4}]",
                                                                                     Name,
                                                                                     priceType,
                                                                                     transactionType,
                                                                                     triggerPrice,
                                                                                     limitPrice);
-                            return false;
+                            _logger.LogError(errMsg);
+                            return (false, errMsg);
                         }
                     }
                     else
                     {
                         if (triggerPrice <= limitPrice)
                         {
-                            _logger.LogError("RMS:Rule [{0}] Validation Failed. For PriceType [{1}], TransactionType [{2}], TriggerPrice [{3}] should be greater than LimitPrice [{4}]",
+                            errMsg = string.Format("RMS:Rule [{0}] Validation Failed. For PriceType [{1}], TransactionType [{2}], TriggerPrice [{3}] should be greater than LimitPrice [{4}]",
                                                                                     Name,
                                                                                     priceType,
                                                                                     transactionType,
                                                                                     triggerPrice,
                                                                                     limitPrice);
-                            return false;
+                            _logger.LogError(errMsg);
+                            return (false, errMsg);
                         }
                     }
                     break;
                 case PriceType.StopLossMarket:
                     if (productType == ProductType.BracketOrder || productType == ProductType.HighLeverage)
                     {
-                        _logger.LogError("RMS:Rule [{0}] Validation Failed. For PriceType [{1}], Invalid ProductType [{2}] is given",
+                        errMsg = string.Format("RMS:Rule [{0}] Validation Failed. For PriceType [{1}], Invalid ProductType [{2}] is given",
                                                                                        Name,
                                                                                        priceType,
                                                                                        productType);
-                        return false;
+                        _logger.LogError(errMsg);
+                        return (false, errMsg);
                     }
 
                     if (transactionType == TransactionType.Buy)
                     {
                         if (triggerPrice <= limitPrice)
                         {
-                            _logger.LogError("RMS:Rule [{0}] Validation Failed. For PriceType [{1}], TransactionType [{2}], TriggerPrice [{3}] should be greater than LimitPrice [{4}]",
+                            errMsg = string.Format("RMS:Rule [{0}] Validation Failed. For PriceType [{1}], TransactionType [{2}], TriggerPrice [{3}] should be greater than LimitPrice [{4}]",
                                                                                     Name,
                                                                                     priceType,
                                                                                     transactionType,
                                                                                     triggerPrice,
                                                                                     limitPrice);
-                            return false;
+                            _logger.LogError(errMsg);
+                            return (false, errMsg);
                         }
                     }
                     else
                     {
                         if (triggerPrice >= limitPrice)
                         {
-                            _logger.LogError("RMS:Rule [{0}] Validation Failed. For PriceType [{1}], TransactionType [{2}], TriggerPrice [{3}] should be less than LimitPrice [{4}]",
+                            errMsg = string.Format("RMS:Rule [{0}] Validation Failed. For PriceType [{1}], TransactionType [{2}], TriggerPrice [{3}] should be less than LimitPrice [{4}]",
                                                                                     Name,
                                                                                     priceType,
                                                                                     transactionType,
                                                                                     triggerPrice,
                                                                                     limitPrice);
-                            return false;
+                            _logger.LogError(errMsg);
+                            return (false, errMsg);
                         }
                     }
                     break;
                 default:
                     break;
             }
-            return true;
+            return (true, errMsg);
         }
         private OrderMarginRequest? CreateOrderMarginRequest(CreateOrder createOrder)
         {
