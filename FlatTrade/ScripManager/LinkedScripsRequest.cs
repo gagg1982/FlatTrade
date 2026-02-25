@@ -1,5 +1,5 @@
-﻿using FlatTrade.Common.JsonConvertors;
-using FlatTrade.Common.Types.Base;
+﻿using Common.JsonConvertors;
+using FlatTrade.Types.Base;
 using Newtonsoft.Json;
 namespace FlatTrade.ScripManager
 {

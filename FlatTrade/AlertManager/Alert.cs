@@ -1,7 +1,7 @@
 ﻿using FlatTrade.AuthenticationManager;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Throttle;
-using FlatTrade.Common.Transport;
+using Common.Helpers;
+using Common.Throttle;
+using Common.Transport;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 namespace FlatTrade.AlertManager
@@ -36,7 +36,7 @@ namespace FlatTrade.AlertManager
             var serializedSetAlertRequest = JsonConvert.SerializeObject(setAlertRequest);
 
             string requestParams = $"jData={serializedSetAlertRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<SetAlertResponse>(EndPoints.SetAlertUrl, requestParams);
+            return await _httpClient.PostMessageAsync<SetAlertResponse, BaseErrorMessageResponse>(EndPoints.SetAlertUrl, requestParams);
         }
 
         //[Throttle]
@@ -63,7 +63,7 @@ namespace FlatTrade.AlertManager
             var serializedCancelAlertRequest = JsonConvert.SerializeObject(cancelAlertRequest);
 
             string requestParams = $"jData={serializedCancelAlertRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<CancelAlertResponse>(EndPoints.CancelAlertUrl, requestParams);
+            return await _httpClient.PostMessageAsync<CancelAlertResponse, BaseErrorMessageResponse>(EndPoints.CancelAlertUrl, requestParams);
         }
 
       //[Throttle]
@@ -110,7 +110,7 @@ namespace FlatTrade.AlertManager
             var serializedModifyAlertRequest = JsonConvert.SerializeObject(modifyAlertRequest);
 
             string requestParams = $"jData={serializedModifyAlertRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<ModifyAlertResponse>(EndPoints.ModifyAlertUrl, requestParams);
+            return await _httpClient.PostMessageAsync<ModifyAlertResponse, BaseErrorMessageResponse>(EndPoints.ModifyAlertUrl, requestParams);
         }
 
       //[Throttle]
@@ -131,7 +131,7 @@ namespace FlatTrade.AlertManager
             var serializedPendingAlert = JsonConvert.SerializeObject(pendingAlert);
 
             string requestParams = $"jData={serializedPendingAlert}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<IEnumerable<PendingAlertResponse>>(EndPoints.PendingAlertUrl, requestParams);
+            return await _httpClient.PostMessageAsync<IEnumerable<PendingAlertResponse>, BaseErrorMessageResponse>(EndPoints.PendingAlertUrl, requestParams);
         }
 
       //[Throttle]
@@ -152,7 +152,7 @@ namespace FlatTrade.AlertManager
             var serializedEnabledAlertTypesRequest = JsonConvert.SerializeObject(enabledAlertTypesRequest);
 
             string requestParams = $"jData={serializedEnabledAlertTypesRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<EnabledAlertTypesResponse>(EndPoints.EnabledAlertTypesUrl, requestParams);
+            return await _httpClient.PostMessageAsync<EnabledAlertTypesResponse, BaseErrorMessageResponse>(EndPoints.EnabledAlertTypesUrl, requestParams);
         }
 
         //[Throttle]
@@ -173,7 +173,7 @@ namespace FlatTrade.AlertManager
             var serializedUnSettledTradingDateRequest = JsonConvert.SerializeObject(unSettledTradingDateRequest);
 
             string requestParams = $"jData={serializedUnSettledTradingDateRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<UnSettledTradingDateResponse>(EndPoints.UnSettledTradingDateUrl, requestParams);
+            return await _httpClient.PostMessageAsync<UnSettledTradingDateResponse, BaseErrorMessageResponse>(EndPoints.UnSettledTradingDateUrl, requestParams);
         }
     }
 }

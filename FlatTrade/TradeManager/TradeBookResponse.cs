@@ -1,18 +1,20 @@
-﻿using FlatTrade.Common.Types.Base;
+﻿using FlatTrade.Types.Base;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using static Common.Helpers.DataReaderHelper;
 
 namespace FlatTrade.TradeManager
 {
     public class TradeBookResponse : BaseErrorMessageResponse
     {
         [JsonProperty("exch")]
+        [Transform(typeof(EnumTransformer<Exchange>))]
         public Exchange Exchange { get; set; }
 
         [JsonProperty("tsym")]
         public string TradingSymbol { get; set; } = string.Empty;
 
-        [JsonProperty("snonum")]
+        [JsonProperty("snonum")]        
         public long SnoOrderNumber { get; set; }
 
         [JsonProperty("remarks")]
@@ -31,15 +33,19 @@ namespace FlatTrade.TradeManager
         public string AccountId { get; set; } = string.Empty;
 
         [JsonProperty("prctyp")]
+        [Transform(typeof(EnumTransformer<PriceType>))]
         public PriceType PriceType { get; set; }  //LMT/MKT
 
         [JsonProperty("ret")]
-        public required RetentionType RetentionType { get; set; }  //DAY/IOC/EOS
+        [Transform(typeof(EnumTransformer<RetentionType>))]
+        public RetentionType RetentionType { get; set; }  //DAY/IOC/EOS
 
         [JsonProperty("s_prdt_ali")]
+        [Transform(typeof(EnumTransformer<ProductName>))]
         public ProductName ProductDisplayName { get; set; }
 
         [JsonProperty("prd")]
+        [Transform(typeof(EnumTransformer<ProductType>))]
         public ProductType ProductType { get; set; }
 
         [JsonProperty("fltm")]
@@ -47,9 +53,10 @@ namespace FlatTrade.TradeManager
         public DateTime FillDateTime { get; set; }
 
         [JsonProperty("flid")]
-        public string FillId { get; set; } = string.Empty;
+        public long FillId { get; set; } 
 
         [JsonProperty("trantype")]
+        [Transform(typeof(EnumTransformer<TransactionType>))]
         public TransactionType TransactionType { get; set; }
 
         [JsonProperty("qty")]

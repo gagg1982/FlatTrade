@@ -1,4 +1,4 @@
-﻿using FlatTrade.Common.Types.Base;
+﻿using FlatTrade.Types.Base;
 using Newtonsoft.Json;
 
 namespace FlatTrade.TradeManager
@@ -10,6 +10,9 @@ namespace FlatTrade.TradeManager
 
         [JsonProperty("exch")]
         public Exchange Exchange { get; set; }
+
+        [JsonProperty("symname")]
+        public required string SymbolName { get; set; }
 
         [JsonProperty("tsym")]
         public string TradingSymbol { get; set; } = string.Empty;

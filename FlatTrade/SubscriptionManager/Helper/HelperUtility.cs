@@ -1,12 +1,23 @@
-﻿
-using FlatTrade.Common.Types.Base;
+﻿using FlatTrade.Types.Base;
 using System.Text;
+using System.Threading.Channels;
 
 namespace FlatTrade.SubscriptionManager.Helper
 {
-    internal static class HelperUtility
+    public static class HelperUtility
     {
-        internal static string CreateExchangeSymbolTokenPair(IEnumerable<KeyValuePair<Exchange, long>> exchangeSymbolTokenPair)
+        public static Channel<T> CreateBoundedChannel<T>(int capacity)
+        {
+            var options = new BoundedChannelOptions(capacity)
+            {
+                FullMode = BoundedChannelFullMode.Wait,
+                SingleReader = true, // Can have multiple readers if needed
+                SingleWriter = true // Can have multiple writers if needed      
+            };
+            return Channel.CreateBounded<T>(options);
+        }
+
+        public static string CreateExchangeSymbolTokenPair(IEnumerable<KeyValuePair<Exchange, long>> exchangeSymbolTokenPair)
         {
             StringBuilder exchangeSymbolToken = new();
             foreach (var kvp in exchangeSymbolTokenPair)
@@ -16,7 +27,7 @@ namespace FlatTrade.SubscriptionManager.Helper
             return exchangeSymbolToken.ToString().TrimEnd('#');
         }
 
-        internal static IEnumerable<KeyValuePair<Exchange, long>> GetValidExchangePairs(IEnumerable<KeyValuePair<Exchange, long>> pair)
+        public static IEnumerable<KeyValuePair<Exchange, long>> GetValidExchangePairs(IEnumerable<KeyValuePair<Exchange, long>> pair)
         {
             return new List<KeyValuePair<Exchange, long>>(pair).FindAll(p => p.Value > 0);
         }

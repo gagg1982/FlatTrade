@@ -1,8 +1,9 @@
 ﻿using FlatTrade.AuthenticationManager;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Throttle;
-using FlatTrade.Common.Transport;
-using FlatTrade.Common.Types.Base;
+using Common.Helpers;
+using Common.Throttle;
+using Common.Types;
+using Common.Transport;
+using FlatTrade.Types.Base;
 using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -47,7 +48,7 @@ namespace FlatTrade.MarketInfoManager
             var serializedTopListNames = JsonConvert.SerializeObject(topListNames);
 
             string requestParams = $"jData={serializedTopListNames}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<TopListNamesResponse>(EndPoints.TopListNamesUrl, requestParams);
+            return await _httpClient.PostMessageAsync<TopListNamesResponse, BaseErrorMessageResponse>(EndPoints.TopListNamesUrl, requestParams);
         }
 
       //[Throttle]
@@ -79,7 +80,7 @@ namespace FlatTrade.MarketInfoManager
             var serializedTopList = JsonConvert.SerializeObject(topList);
 
             string requestParams = $"jData={serializedTopList}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<TopListResponse>(EndPoints.TopListUrl, requestParams);
+            return await _httpClient.PostMessageAsync<TopListResponse, BaseErrorMessageResponse>(EndPoints.TopListUrl, requestParams);
         }
 
       //[Throttle]
@@ -105,7 +106,7 @@ namespace FlatTrade.MarketInfoManager
             var serializedIndexList = JsonConvert.SerializeObject(indexList);
 
             string requestParams = $"jData={serializedIndexList}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<IndexListResponse>(EndPoints.IndexListUrl, requestParams);
+            return await _httpClient.PostMessageAsync<IndexListResponse, BaseErrorMessageResponse>(EndPoints.IndexListUrl, requestParams);
         }
 
       //[Throttle]
@@ -118,7 +119,7 @@ namespace FlatTrade.MarketInfoManager
         /// <param name="endDateTime"></param>
         /// <param name="interval"></param>
         /// <returns></returns>
-        public async virtual Task<(IEnumerable<TimePriceDataResponse>?, string)> GetTimePriceDataAsync(Exchange exchange, string tradngSymbol, DateTime startDateTime, DateTime endDateTime, ChartInterval interval)
+        public async virtual Task<(IEnumerable<TimePriceDataResponse>?, string)> GetTimePriceDataAsync(Exchange exchange, string tradingSymbol, DateTime startDateTime, DateTime endDateTime, ChartInterval interval)
         {
             var (accessTokenResult, eMsg) = await _authentication.GetAccessTokenAsync();
             if (accessTokenResult is null)
@@ -131,7 +132,7 @@ namespace FlatTrade.MarketInfoManager
             {
                 UserId = accessTokenResult.ClientCode,
                 Exchange = exchange,
-                TradingSymbol = Uri.EscapeDataString(tradngSymbol),
+                TradingSymbol = Uri.EscapeDataString(tradingSymbol),
                 EpochEndDateTime = (long)(endDateTime.Date - DateTime.UnixEpoch).TotalSeconds,
                 EpochStartDateTime = (long)(startDateTime.Date - DateTime.UnixEpoch).TotalSeconds,
                 Interval = interval
@@ -139,7 +140,7 @@ namespace FlatTrade.MarketInfoManager
             var serializedTimePriceData = JsonConvert.SerializeObject(timePriceData);
 
             string requestParams = $"jData={serializedTimePriceData}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<IEnumerable<TimePriceDataResponse>>(EndPoints.TimePriceDataUrl, requestParams);
+            return await _httpClient.PostMessageAsync<IEnumerable<TimePriceDataResponse>, BaseErrorMessageResponse>(EndPoints.TimePriceDataUrl, requestParams);
         }
 
       //[Throttle]
@@ -200,7 +201,7 @@ namespace FlatTrade.MarketInfoManager
             var serializedOptionChainRequest = JsonConvert.SerializeObject(optionChainRequest);
 
             string requestParams = $"jData={serializedOptionChainRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            var (resp, errormsg) = await _httpClient.PostMessageAsync<OptionChainResponse>(EndPoints.OptionChainUrl, requestParams);
+            var (resp, errormsg) = await _httpClient.PostMessageAsync<OptionChainResponse, BaseErrorMessageResponse>(EndPoints.OptionChainUrl, requestParams);
             if (resp is null || resp.OptionChainDataResponse is null || !resp.OptionChainDataResponse.Any() || errormsg != Constants.StatusOk)
             {
                 return (default, errormsg);
@@ -227,7 +228,7 @@ namespace FlatTrade.MarketInfoManager
             var serializedOptionGreek = JsonConvert.SerializeObject(optionGreekRequest);
 
             string requestParams = $"jData={serializedOptionGreek}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<OptionGreekResponse>(EndPoints.OptionGreekUrl, requestParams);
+            return await _httpClient.PostMessageAsync<OptionGreekResponse, BaseErrorMessageResponse>(EndPoints.OptionGreekUrl, requestParams);
         }
 
       //[Throttle]
@@ -253,7 +254,7 @@ namespace FlatTrade.MarketInfoManager
             var serializedExchangeMessage = JsonConvert.SerializeObject(exchangeMessage);
 
             string requestParams = $"jData={serializedExchangeMessage}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<IEnumerable<ExchangeMessageResponse>>(EndPoints.ExchangeMessageUrl, requestParams);
+            return await _httpClient.PostMessageAsync<IEnumerable<ExchangeMessageResponse>, BaseErrorMessageResponse>(EndPoints.ExchangeMessageUrl, requestParams);
         }
 
       //[Throttle]
@@ -277,7 +278,7 @@ namespace FlatTrade.MarketInfoManager
             var serializedBrokerMessageRequest = JsonConvert.SerializeObject(brokerMessageRequest);
 
             string requestParams = $"jData={serializedBrokerMessageRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<IEnumerable<BrokerMessageResponse>>(EndPoints.BrokerMessageUrl, requestParams);
+            return await _httpClient.PostMessageAsync<IEnumerable<BrokerMessageResponse>, BaseErrorMessageResponse>(EndPoints.BrokerMessageUrl, requestParams);
         }
 
       //[Throttle]
@@ -303,7 +304,7 @@ namespace FlatTrade.MarketInfoManager
             var serializedSpanCalculator = JsonConvert.SerializeObject(spanCalculator);
 
             string requestParams = $"jData={serializedSpanCalculator}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<IEnumerable<SpanCalculatorResponse>>(EndPoints.SpanCalculatorUrl, requestParams);
+            return await _httpClient.PostMessageAsync<IEnumerable<SpanCalculatorResponse>, BaseErrorMessageResponse>(EndPoints.SpanCalculatorUrl, requestParams);
         }
     
 
@@ -364,6 +365,32 @@ namespace FlatTrade.MarketInfoManager
                 _logger.LogError("NOK: {msg}", msg);
             }
             return (equities, msg);
+        }
+
+        public async virtual Task<(BrokerageResponse?, string)> GetBrokerageAsync(TransactionType tranType, Exchange exchange, ProductType productType, string tradingSymbol, decimal price, long quantity)
+        {
+            var (accessTokenResult, eMsg) = await _authentication.GetAccessTokenAsync();
+            if (accessTokenResult is null)
+            {
+                eMsg = $"Cannot access Brokerage details. {eMsg}";
+                return (default, eMsg);
+            }
+
+            var brokerageRequest = new BrokerageRequest
+            {
+                UserId = accessTokenResult.ClientCode,
+                AccountId = accessTokenResult.ClientCode,
+                Exchange = exchange,
+                TradingSymbol = $"{Uri.EscapeDataString(tradingSymbol)}",
+                Price = price,
+                ProductType = productType,
+                Quantity = quantity,
+                TransactionType = tranType
+            };
+            var serializedUserDetails = JsonConvert.SerializeObject(brokerageRequest);
+
+            string requestParams = $"jData={serializedUserDetails}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
+            return await _httpClient.PostMessageAsync<BrokerageResponse, BaseErrorMessageResponse>(EndPoints.BrokerageUrl, requestParams);
         }
 
         static decimal ParseDecimal(string input)

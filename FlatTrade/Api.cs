@@ -4,7 +4,7 @@
     using Common.Transport;
     using FlatTrade.AlertManager;
     using FlatTrade.AuthenticationManager;
-    using FlatTrade.Common.Throttle;
+    using Common.Throttle;
     using FlatTrade.FundManager;
     using FlatTrade.HoldingsManager;
     using FlatTrade.LimitsManager;
@@ -19,8 +19,9 @@
     /// <summary>
     /// 
     /// </summary>
-    public class Api
+    public sealed class Api : IDisposable, IAsyncDisposable
     {
+        private bool _disposed = false;
         private readonly static RestHttpClient _client = new(new HttpClient(), string.Empty);
 
         private readonly Order _order;
@@ -35,6 +36,7 @@
         private readonly Funds _funds;
         private readonly MarketInfo _marketInfo;
 
+        private ILogger<Api> _logger;
         public static RestHttpClient HttpClient => _client;
         public Order Order => _order;
         public Trade Trade => _trade;
@@ -48,14 +50,16 @@
         public Funds Funds => _funds;
         public MarketInfo MarketInfo => _marketInfo;
 
-        public Api(string apiKey, string redirectUrl, string secret, string accessTokenFilePath, ILoggerFactory? loggerFactory, IInterceptor? throttlerInterceptor)
+        public Api(string apiKey, string redirectUrl, string secret, string accessTokenFilePath, string uid, string password, string qrCode, ILoggerFactory? loggerFactory, IInterceptor? throttlerInterceptor)
         {
             loggerFactory ??= new LoggerFactory();
+            _logger = loggerFactory.CreateLogger<Api>();
+
             var proxyGen = new ProxyGenerator();
             var interceptor = throttlerInterceptor ?? new NullThrottleInterceptor();
 
 
-            _authentication = proxyGen.CreateClassProxy<Authentication>([apiKey, redirectUrl, secret, accessTokenFilePath, _client, loggerFactory], interceptor);
+            _authentication = proxyGen.CreateClassProxy<Authentication>([apiKey, redirectUrl, secret, accessTokenFilePath, uid, password, qrCode, _client, loggerFactory], interceptor);
 
             _user = proxyGen.CreateClassProxy<User>([_authentication, _client, loggerFactory], interceptor);
             _order = proxyGen.CreateClassProxy<Order>([this, _client, loggerFactory], interceptor);
@@ -66,16 +70,50 @@
             _funds = proxyGen.CreateClassProxy<Funds>([_authentication, _client, loggerFactory], interceptor);
             _marketInfo = proxyGen.CreateClassProxy<MarketInfo>([_authentication, _client, loggerFactory], interceptor);
             _alerts = proxyGen.CreateClassProxy<Alert>([_authentication, _client, loggerFactory], interceptor);
+            
+            _subscription = Task.Run(async () =>
+            {
+                var (userResult, eMsg) = await _user.GetUserDetailsAsync().ConfigureAwait(false);
+                if (userResult is null)
+                    throw new InvalidOperationException($"Cannot fetch user details. {eMsg}");
 
-            var (userResult, eMsg) = _user.GetUserDetailsAsync().GetAwaiter().GetResult(); // Ensure user details are fetched on initialization
-            if (userResult is null)
-                throw new InvalidOperationException($"Cannot fetch user details. {eMsg}");
+                var (accessTokenResult, eMsg1) = await _authentication.GetAccessTokenAsync().ConfigureAwait(false);
+                if (accessTokenResult is null)
+                    throw new InvalidOperationException($"Failed to retrieve access token: {eMsg1}");
 
-            var (accessTokenResult, eMsg1) = _authentication.GetAccessTokenAsync().GetAwaiter().GetResult();
-            if (accessTokenResult is null)
-                throw new InvalidOperationException($"Failed to retrieve access token: {eMsg1}");
-
-            _subscription = new Subscription(userResult.AccountId, userResult.AccountId, accessTokenResult.AccessToken, loggerFactory);
+                var subscription = await Subscription.CreateAsync(userResult.AccountId, userResult.AccountId, accessTokenResult.AccessToken, loggerFactory)
+                                                    .ConfigureAwait(false);
+                return subscription;
+            }).GetAwaiter().GetResult();
         }
+
+
+        public void Dispose()
+        {
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        private async ValueTask DisposeAsyncCore()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            // Dispose async resources             
+            await Subscription.DisposeAsync();
+            _client.GetNativeHttpClient().Dispose();
+
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
+        }
+
     }
 }

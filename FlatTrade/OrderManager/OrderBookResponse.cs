@@ -1,5 +1,5 @@
-﻿using FlatTrade.Common.JsonConvertors;
-using FlatTrade.Common.Types.Base;
+﻿using Common.JsonConvertors;
+using FlatTrade.Types.Base;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
@@ -14,6 +14,9 @@ namespace FlatTrade.OrderManager
 
         [JsonProperty("actid")]
         public string AccountId { get; set; } = string.Empty;
+
+        [JsonProperty("symname")]
+        public required string SymbolName { get; set; }
 
         [JsonProperty("kidid")]
         public int KidId { get; set; }
@@ -46,10 +49,10 @@ namespace FlatTrade.OrderManager
         public decimal RemainingOriginalPriceFromModify { get; set; }
 
         [JsonProperty("rtrgprc")]
-        public decimal RTriggerPrice { get; set; }
+        public decimal RemainingTriggerPrice { get; set; }
 
         [JsonProperty("rqty")]
-        public decimal RQuantity { get; set; }
+        public decimal RemainingQuantity { get; set; }
 
         [JsonProperty("rorgqty")]
         public long RemaningOriginalQuantityFromModify { get; set; } // used in modify

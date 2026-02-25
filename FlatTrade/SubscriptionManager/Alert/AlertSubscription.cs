@@ -1,17 +1,20 @@
-﻿using FlatTrade.SubscriptionManager.Order;
+﻿using Common.Helpers;
+using FlatTrade.SubscriptionManager.Order;
+using FlatTrade.SubscriptionManager.Quote;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace FlatTrade.SubscriptionManager.Alert
 {
-    public class AlertSubscription(Subscription subscription, ILoggerFactory loggerFactory, OnSubscriptionEvents? onSubscriptionEvents) : ISubscriptionType, IUpdateHandler
+    public class AlertSubscription(Subscription subscription, ILoggerFactory loggerFactory, OnSubscriptionEvents? onSubscriptionEvents) : ISubscriptionType, IUpdateHandler, IDisposable, IAsyncDisposable
     {
+        private bool _disposed = false;
         private OnSubscriptionEvents? _onSubscriptionEvents = onSubscriptionEvents;
         private readonly ILogger<AlertSubscription> _logger = loggerFactory.CreateLogger<AlertSubscription>();
         private readonly Subscription _subscription = subscription;
         public IEnumerable<SubscriptionType> GetSubscriptionTypes()
         {
-            return [SubscriptionType.SubscribeAlertMessages];
+            return [SubscriptionType.ConnectAck, SubscriptionType.SubscribeAlertMessages];
         }
 
         public async Task OnMessageReceived(object? obj, SubscriptionEventArgs subscriptionEvent)
@@ -35,6 +38,7 @@ namespace FlatTrade.SubscriptionManager.Alert
                         }
                         break;
                     case SubscriptionType.SubscribeAlertMessages:
+                        RestHttpClientExtension.CheckJsonAgainstModel<OrderSubscriptionRequestAck>(subscriptionEvent.RawMessage, false);
                         if (_onSubscriptionEvents != null)
                             await _onSubscriptionEvents.Invoke(this, subscriptionEvent.SubscriptionType, subscriptionEvent.RawMessage, JsonConvert.DeserializeObject<OrderSubscriptionRequestAck>(subscriptionEvent.RawMessage));
                         break;
@@ -55,6 +59,32 @@ namespace FlatTrade.SubscriptionManager.Alert
             {
                 _logger.LogError("[Alert Subscription]: OnMessageReceived Exception : {e.Message}", e.Message);
             }
+        }
+        public void Dispose()
+        {
+            DisposeAsyncCore().AsTask().GetAwaiter().GetResult(); // Safe sync fallback
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore();
+            GC.SuppressFinalize(this);
+        }
+
+        protected ValueTask DisposeAsyncCore()
+        {
+            if (_disposed)
+                return default;
+
+            _disposed = true;
+
+            // Dispose async resources
+            _onSubscriptionEvents = null;
+
+            _logger.LogInformation("{0}: Disposed gracefully", GetType().Name);
+            // Dispose other sync-only resources here (e.g., timers, files)
+            return default;
         }
     }
 }

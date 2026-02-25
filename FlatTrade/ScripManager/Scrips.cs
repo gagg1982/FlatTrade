@@ -1,9 +1,8 @@
 ﻿using FlatTrade.AuthenticationManager;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Throttle;
-using FlatTrade.Common.Transport;
-using FlatTrade.Common.Types.Base;
-using FlatTrade.SubscriptionManager.Helper;
+using Common.Helpers;
+using Common.Transport;
+using FlatTrade.Types.Base;
+using Common.Types;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Collections.Concurrent;
@@ -92,7 +91,7 @@ namespace FlatTrade.ScripManager
             var serializedUserDetails = JsonConvert.SerializeObject(userDetails);
 
             string requestParams = $"jData={serializedUserDetails}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            var (response, eMsg1) = await _httpClient.PostMessageAsync<ScripDetailsResponse>(EndPoints.ScripDetailsUrl, requestParams, true);
+            var (response, eMsg1) = await _httpClient.PostMessageAsync<ScripDetailsResponse, BaseErrorMessageResponse>(EndPoints.ScripDetailsUrl, requestParams, true);
 
             if (response is not null && response.ScripDetails is not null)
             {
@@ -127,7 +126,7 @@ namespace FlatTrade.ScripManager
             var serializedUserDetails = JsonConvert.SerializeObject(quoteDetails);
 
             string requestParams = $"jData={serializedUserDetails}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<QuotesResponse>(EndPoints.QuotesUrl, requestParams, true);
+            return await _httpClient.PostMessageAsync<QuotesResponse, BaseErrorMessageResponse>(EndPoints.QuotesUrl, requestParams, true);
         }
 
         //[Throttle]
@@ -156,7 +155,7 @@ namespace FlatTrade.ScripManager
             var serializedLinkedScripsRequest = JsonConvert.SerializeObject(linkedScripsRequest);
 
             string requestParams = $"jData={serializedLinkedScripsRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<LinkedScripsResponse>(EndPoints.GetLinkedScripsUrl, requestParams);
+            return await _httpClient.PostMessageAsync<LinkedScripsResponse, BaseErrorMessageResponse>(EndPoints.GetLinkedScripsUrl, requestParams);
         }
 
         //[Throttle]
@@ -185,7 +184,7 @@ namespace FlatTrade.ScripManager
             var serializedSecurityInfoRequest = JsonConvert.SerializeObject(securityInfoRequest);
 
             string requestParams = $"jData={serializedSecurityInfoRequest}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<SecurityInfoResponse>(EndPoints.GetSecurityInfoUrl, requestParams, true);
+            return await _httpClient.PostMessageAsync<SecurityInfoResponse, BaseErrorMessageResponse>(EndPoints.GetSecurityInfoUrl, requestParams, true);
         }
     }
 }

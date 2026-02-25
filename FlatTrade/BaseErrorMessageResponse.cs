@@ -1,15 +1,14 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-
-namespace FlatTrade
+﻿namespace FlatTrade
 {
-    public class BaseErrorMessageResponse
+    using Newtonsoft.Json;
+    using Newtonsoft.Json.Converters;
+    using Common.Types;
+
+    public class BaseErrorMessageResponse : BaseErrorMessage
     {
         [JsonProperty("stat")]
         public string Status { get; set; } = string.Empty;
 
-        [JsonProperty("emsg")]
-        public string ErrorMsg { get; set; } = string.Empty;
 
         [JsonProperty("request_time")]
         [JsonConverter(typeof(IsoDateTimeConverter))]

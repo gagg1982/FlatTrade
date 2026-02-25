@@ -12,5 +12,11 @@ namespace FlatTrade.OrderManager
 
         [JsonProperty("marginused")]
         public decimal TotalMarginUsed { get; set; }
+
+        [JsonProperty("marginusedprev")]
+        public decimal MarginUsedPreviously { get; set; }
+
+        [JsonProperty("ordermargin")]
+        public decimal OrderMargin { get; set; }
     }
 }

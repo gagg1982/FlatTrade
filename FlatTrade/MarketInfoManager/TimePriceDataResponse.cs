@@ -21,7 +21,6 @@ namespace FlatTrade.MarketInfoManager
         [JsonProperty("inth")]
         public decimal HighPrice { get; set; }
 
-
         [JsonProperty("intl")]
         public decimal LowPrice { get; set; }
 

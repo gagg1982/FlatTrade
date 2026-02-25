@@ -1,7 +1,7 @@
 ﻿using FlatTrade.AuthenticationManager;
-using FlatTrade.Common.Helpers;
-using FlatTrade.Common.Throttle;
-using FlatTrade.Common.Transport;
+using Common.Helpers;
+using Common.Throttle;
+using Common.Transport;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -44,7 +44,7 @@ namespace FlatTrade.FundManager
             var serializedCancelPayOut = JsonConvert.SerializeObject(cancelPayOut);
 
             string requestParams = $"jData={serializedCancelPayOut}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<CancelPayOutResponse>(EndPoints.CancelPayoutUrl, requestParams);
+            return await _httpClient.PostMessageAsync<CancelPayOutResponse, BaseErrorMessageResponse>(EndPoints.CancelPayoutUrl, requestParams);
         }
 
       //[Throttle]
@@ -72,7 +72,7 @@ namespace FlatTrade.FundManager
             var serializedGetPayOutReport = JsonConvert.SerializeObject(getPayOutReport);
 
             string requestParams = $"jData={serializedGetPayOutReport}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<GetPayOutReportResponse>(EndPoints.PayOutReportUrl, requestParams);
+            return await _httpClient.PostMessageAsync<GetPayOutReportResponse, BaseErrorMessageResponse>(EndPoints.PayOutReportUrl, requestParams);
         }
 
       //[Throttle]
@@ -100,7 +100,7 @@ namespace FlatTrade.FundManager
             var serializedGetPayInReport = JsonConvert.SerializeObject(getPayInReport);
 
             string requestParams = $"jData={serializedGetPayInReport}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<GetPayInReportResponse>(EndPoints.PayInReportUrl, requestParams);
+            return await _httpClient.PostMessageAsync<GetPayInReportResponse, BaseErrorMessageResponse>(EndPoints.PayInReportUrl, requestParams);
         }
 
       //[Throttle]
@@ -129,7 +129,7 @@ namespace FlatTrade.FundManager
             var serializedFundsPayOut = JsonConvert.SerializeObject(fundsPayOut);
 
             string requestParams = $"jData={serializedFundsPayOut}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<FundsPayOutResponse>(EndPoints.FundsPayOutRequestUrl, requestParams);
+            return await _httpClient.PostMessageAsync<FundsPayOutResponse, BaseErrorMessageResponse>(EndPoints.FundsPayOutRequestUrl, requestParams);
         }
 
       //[Throttle]
@@ -150,7 +150,7 @@ namespace FlatTrade.FundManager
             var serializedGetMaxPayOutAmount = JsonConvert.SerializeObject(getMaxPayOutAmount);
 
             string requestParams = $"jData={serializedGetMaxPayOutAmount}&jKey={Uri.EscapeDataString(accessTokenResult.AccessToken)}";
-            return await _httpClient.PostMessageAsync<MaxPayOutAmountResponse>(EndPoints.MaxPayOutAmountUrl, requestParams);
+            return await _httpClient.PostMessageAsync<MaxPayOutAmountResponse, BaseErrorMessageResponse>(EndPoints.MaxPayOutAmountUrl, requestParams);
         }
     }
 }

@@ -1,0 +1,1012 @@
+{
+	"info": {
+		"_postman_id": "efff59db-484d-4757-a1e5-6ee4ca5b1787",
+		"name": "Piconnect_v2",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "27948979"
+	},
+	"item": [
+		{
+			"name": "PlaceOrder",
+			"item": [
+				{
+					"name": "MKT Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\",\n    \"tsym\": \"TCS-EQ\",\n    \"qty\": \"1\",\n    \"mkt_protection\": \"5\",\n    \"prc\": \"0\",\n    \"dscqty\": \"0\",\n    \"prd\": \"C\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"MKT\",\n    \"ret\": \"DAY\",\n    \"ordersource\": \"API\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "LMT Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\",\n    \"tsym\": \"INFY-EQ\",\n    \"qty\": \"1\",\n    \"prc\": \"1584.5\",\n    \"dscqty\": \"0\",\n    \"prd\": \"C\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"LMT\",\n    \"ret\": \"DAY\",\n    \"ordersource\": \"API\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "SL-LMT Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\",\n    \"tsym\": \"INFY-EQ\",\n    \"qty\": \"1\",\n    \"prc\": \"1589.20\",\n    \"trgprc\": \"1588.70\",\n    \"dscqty\": \"0\",\n    \"prd\": \"C\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"SL-LMT\",\n    \"ret\": \"DAY\",\n    \"ordersource\": \"API\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "SL-MKT Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\",\n    \"tsym\": \"INFY-EQ\",\n    \"qty\": \"1\",\n    \"mkt_protection\":\"5\",\n    \"prc\": \"0\",\n    \"trgprc\": \"1588.70\",\n    \"dscqty\": \"0\",\n    \"prd\": \"C\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"SL-MKT\",\n    \"ret\": \"DAY\",\n    \"ordersource\": \"API\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "Cover Order -LMT",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\",\n    \"tsym\": \"INFY-EQ\",\n    \"qty\": \"1\",\n    \"prc\": \"1587.1\",\n    \"prd\": \"H\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"LMT\",\n    \"ret\": \"DAY\",\n    \"blprc\": \"2\",\n    \"ordersource\": \"API\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "Cover Order-MKT",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\",\n    \"tsym\": \"INFY-EQ\",\n    \"qty\": \"1\",\n    \"mkt_protection\":\"5\",\n    \"prc\": \"0\",\n    \"prd\": \"H\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"MKT\",\n    \"ret\": \"DAY\",\n    \"blprc\": \"2\",\n    \"ordersource\": \"API\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "Cover Order SL-LMT",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\",\n    \"tsym\": \"INFY-EQ\",\n    \"qty\": \"1\",\n    \"prc\": \"1585.50\",\n    \"trgprc\":\"1583.80\",\n    \"prd\": \"H\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"SL-LMT\",\n    \"ret\": \"DAY\",\n    \"blprc\": \"2\",\n    \"ordersource\": \"API\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "Bracket Order-LMT",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n     \"exch\": \"NSE\",\n    \"tsym\": \"INFY-EQ\",\n    \"qty\": \"1\",\n    \"prc\": \"1583.80\",\n    \"prd\": \"B\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"LMT\",\n    \"ret\": \"DAY\",\n    \"blprc\": \"2.00\",\n    \"bpprc\": \"2\",\n    \"trailprc\": \"1\",\n    \"ordersource\": \"API\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "Bracket Order-MKT",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n     \"exch\": \"NSE\",\n    \"tsym\": \"INFY-EQ\",\n    \"qty\": \"1\",\n    \"mkt_protection\":\"5\",\n    \"prc\": \"0\",\n    \"prd\": \"B\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"MKT\",\n    \"ret\": \"DAY\",\n    \"blprc\": \"2.00\",\n    \"bpprc\": \"2\",\n    \"trailprc\": \"1\",\n    \"ordersource\": \"API\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "Bracket Order-SL-LMT",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\",\n    \"tsym\": \"INFY-EQ\",\n    \"qty\": \"1\",\n    \"prc\": \"1584.00\",\n    \"trgprc\": \"1584.00\",\n    \"prd\": \"B\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"SL-LMT\",\n    \"ret\": \"DAY\",\n    \"blprc\": \"2.00\",\n    \"bpprc\": \"2\",\n    \"trailprc\": \"1\",\n    \"ordersource\": \"API\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceOrder"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "HoldingsAndLimits",
+			"item": [
+				{
+					"name": "Holdings",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"prd\": \"C\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/Holdings"
+					},
+					"response": []
+				},
+				{
+					"name": "Limits",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/Limits"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "MarketInfo",
+			"item": [
+				{
+					"name": "GetIndexList",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetIndexList"
+					},
+					"response": []
+				},
+				{
+					"name": "TopListName",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/TopListName"
+					},
+					"response": []
+				},
+				{
+					"name": "TopList",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\",\n    \"tb\" : \"T\",\n    \"bskt\" : \"NSEALL\",\n    \"crt\" : \"LTP\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/TopList"
+					},
+					"response": []
+				},
+				{
+					"name": "TPSeries",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"exch\": \"BSE\",\n    \"token\" : \"INFY\",\n    \"st\" : \"1750357800\",\n    \"et\" : \"1750674066\",\n    \"intrv\" : \"1\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/TPSeries"
+					},
+					"response": []
+				},
+				{
+					"name": "EODChartData",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"sym\": \"BSE:SBIN\",\n    \"from\": \"1690934400\",\n    \"to\" : \"1691107200\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/EODChartData"
+					},
+					"response": []
+				},
+				{
+					"name": "GetOptionGreek",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"exd\": \"\",\n    \"strprc\": \"\",\n    \"sptprc\" : \"\",\n    \"int_rate\" : \"\",\n    \"volatility\" : \"\",\n    \"optt\" : \"\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetOptionGreek"
+					},
+					"response": []
+				},
+				{
+					"name": "ExchMsg",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"exch\": \"NSE\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/ExchMsg"
+					},
+					"response": []
+				},
+				{
+					"name": "GetBrokerMsg",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetBrokerMsg"
+					},
+					"response": []
+				},
+				{
+					"name": "SpanCalc",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"actid\": \"{{ClientId}}\",\n    \"pos\" : [\n        {\n            \"exch\" : \"NSE\",\n            \"instname\" : \"\",\n            \"symname\" : \"\",\n            \"expd\" : \"\",\n            \"optt\" : \"CE\",\n            \"strprc\" : \"\",\n            \"buyqty\" : \"\",\n            \"sellqty\" : \"\",\n            \"netqty\" : \"\"\n        }\n    ]\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/SpanCalc"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Alerts",
+			"item": [
+				{
+					"name": "SetAlert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"tsym\" : \"INFY-EQ\",\n    \"exch\": \"NSE\",\n    \"ai_t\" : \"\",\n    \"validity\" : \"DAY\",\n    \"remarks\" : \"Testing\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/SetAlert"
+					},
+					"response": []
+				},
+				{
+					"name": "ModifyAlert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"tsym\" : \"INFY-EQ\",\n    \"exch\": \"NSE\",\n    \"ai_t\" : \"\",\n    \"al_id\" : \"\",\n    \"validity\" : \"DAY\",\n    \"remarks\" : \"Testing\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/ModifyAlert"
+					},
+					"response": []
+				},
+				{
+					"name": "CancelAlert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"al_id\" : \"\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/CancelAlert"
+					},
+					"response": []
+				},
+				{
+					"name": "GetPendingAlert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetPendingAlert"
+					},
+					"response": []
+				},
+				{
+					"name": "GetEnabledAlertTypes",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetEnabledAlertTypes"
+					},
+					"response": []
+				},
+				{
+					"name": "GetUnStledTradingDate",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetUnStledTradingDate"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Funds",
+			"item": [
+				{
+					"name": "GetMaxPayoutAmount",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetMaxPayoutAmount"
+					},
+					"response": []
+				},
+				{
+					"name": "FundsPayOutReq",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"payout\" : \"10\",\n    \"remarks\" : \"\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/FundsPayOutReq"
+					},
+					"response": []
+				},
+				{
+					"name": "GetPayinReport",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"actid\": \"{{ClientId}}\",\n    \"from_date\" : \"\",\n    \"to_date\" : \"\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetPayinReport"
+					},
+					"response": []
+				},
+				{
+					"name": "GetPayoutReport",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"actid\": \"{{ClientId}}\",\n    \"from_date\" : \"\",\n    \"to_date\" : \"\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetPayoutReport"
+					},
+					"response": []
+				},
+				{
+					"name": "CancelPayout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"actid\": \"{{ClientId}}\",\n    \"uid\" : \"{{ClientId}}\",\n    \"trans_ref_num\" : \"\",\n    \"brkname\" : \"\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/CancelPayout"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "UserDetails",
+			"item": [
+				{
+					"name": "UserDetails",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/UserDetails"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "SCRIPS",
+			"item": [
+				{
+					"name": "SearchScrip",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"stext\" : \"TCS\",\n    \"exch\" : \"NSE\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/SearchScrip"
+					},
+					"response": []
+				},
+				{
+					"name": "GetQuotes",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"token\" : \"TCS-EQ\",\n    \"exch\" : \"NSE\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetQuotes"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "OrdersAndTrades",
+			"item": [
+				{
+					"name": "GetOrderMargin",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"exch\": \"BSE\",\n    \"tsym\": \"INFY\",\n    \"qty\": \"1\",\n    \"prc\": \"1598\",\n    \"prd\": \"C\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"LMT\",\n    \"rorgqty\": \"0\",\n    \"rorgprc\": \"0\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetOrderMargin"
+					},
+					"response": []
+				},
+				{
+					"name": "GetBasketMargin",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"exch\": \"BSE\",\n    \"tsym\": \"INFY\",\n    \"qty\": \"1\",\n    \"prc\": \"1598\",\n    \"prd\": \"C\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"LMT\",\n    \"rorgqty\": \"0\",\n    \"rorgprc\": \"0\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetBasketMargin"
+					},
+					"response": []
+				},
+				{
+					"name": "OrderBook",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/OrderBook"
+					},
+					"response": []
+				},
+				{
+					"name": "MultiLegOrderBook",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/MultiLegOrderBook"
+					},
+					"response": []
+				},
+				{
+					"name": "SingleOrdHist",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"norenordno\" : \"\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/SingleOrdHist"
+					},
+					"response": []
+				},
+				{
+					"name": "TradeBook",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\" : \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/TradeBook"
+					},
+					"response": []
+				},
+				{
+					"name": "PositionBook",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\" : \"{{ClientId}}\",\n    \"exch\" : \"NSE\",\n    \"tsym\" : \"INFY-EQ\",\n    \"qty\" : \"10\",\n    \"prd\" : \"C\",\n    \"prevprd\" : \"I\",\n    \"trantype\" : \"B\",\n    \"postype\" : \"DAY\",\n    \"ordersource\" : \"API\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PositionBook"
+					},
+					"response": []
+				},
+				{
+					"name": "ExitSNOOrder",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"prd\" : \"H\",\n    \"norenordno\" : \"\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/ExitSNOOrder"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "GTTandOCO",
+			"item": [
+				{
+					"name": "PlaceGTTOrder",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"tsym\": \"INFY\",\n    \"exch\": \"BSE\",\n    \"ai_t\": \"LTP_B_O\",\n    \"validity\": \"GTT\",\n    \"d\": \"1700\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"LMT\",\n    \"prd\": \"C\",\n    \"ret\": \"DAY\",\n    \"qty\": \"1\",\n    \"prc\": \"1600.55\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceGTTOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "ModifyGTTOrder",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"actid\": \"{{ClientId}}\",\n    \"exch\": \"BSE\",\n    \"ai_t\": \"LTP_A_O\",\n    \"validity\": \"GTT\",\n    \"al_id\": \"25062400000776\",\n    \"d\": \"1700.00\",\n    \"trantype\": \"B\",\n    \"prctyp\": \"LMT\",\n    \"prd\": \"C\",\n    \"ret\": \"DAY\",\n    \"tsym\": \"INFY\",\n    \"qty\": \"5\",\n    \"prc\": \"1600.1\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/ModifyGTTOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "CancelGTTOrder",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"al_id\": \"25062400000776\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/CancelGTTOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "PlaceOCOOrder",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"ai_t\": \"LMT_BOS_O\",\n    \"validity\": \"GTT\",\n    \"tsym\": \"INFY\",\n    \"exch\": \"BSE\",\n    \"oivariable\": [\n        {\n            \"d\": \"1700\",\n            \"var_name\": \"x\"\n        },\n        {\n            \"d\": \"1500\",\n            \"var_name\": \"y\"\n        }\n    ],\n    \"place_order_params\": {\n        \"tsym\": \"INFY\",\n        \"exch\": \"BSE\",\n        \"trantype\": \"B\",\n        \"prctyp\": \"LMT\",\n        \"prd\": \"C\",\n        \"ret\": \"DAY\",\n        \"actid\": \"{{ClientId}}\",\n        \"uid\": \"{{ClientId}}\",\n        \"ordersource\": \"WEB\",\n        \"qty\": \"1\",\n        \"prc\": \"1602.8\"\n    },\n    \"place_order_params_leg2\": {\n        \"tsym\": \"INFY\",\n        \"exch\": \"BSE\",\n        \"trantype\": \"B\",\n        \"prctyp\": \"LMT\",\n        \"prd\": \"C\",\n        \"ret\": \"DAY\",\n        \"actid\": \"{{ClientId}}\",\n        \"uid\": \"{{ClientId}}\",\n        \"ordersource\": \"WEB\",\n        \"qty\": \"1\",\n        \"prc\": \"1602.8\"\n    }\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/PlaceOCOOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "ModifyOCOOrder",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"ai_t\": \"LMT_BOS_O\",\n    \"validity\": \"GTT\",\n    \"tsym\": \"INFY\",\n    \"exch\": \"BSE\",\n    \"al_id\": \"25062400000793\",\n    \"oivariable\": [\n        {\n            \"d\": \"1750.00\",\n            \"var_name\": \"x\"\n        },\n        {\n            \"d\": \"1450.00\",\n            \"var_name\": \"y\"\n        }\n    ],\n    \"place_order_params\": {\n        \"tsym\": \"INFY\",\n        \"exch\": \"BSE\",\n        \"trantype\": \"B\",\n        \"prctyp\": \"LMT\",\n        \"prd\": \"C\",\n        \"ret\": \"DAY\",\n        \"actid\": \"{{ClientId}}\",\n        \"uid\": \"{{ClientId}}\",\n        \"ordersource\": \"WEB\",\n        \"qty\": \"1\",\n        \"prc\": \"1602.8\"\n    },\n    \"place_order_params_leg2\": {\n        \"tsym\": \"INFY\",\n        \"exch\": \"BSE\",\n        \"trantype\": \"B\",\n        \"prctyp\": \"LMT\",\n        \"prd\": \"C\",\n        \"ret\": \"DAY\",\n        \"actid\": \"{{ClientId}}\",\n        \"uid\": \"{{ClientId}}\",\n        \"ordersource\": \"WEB\",\n        \"qty\": \"1\",\n        \"prc\": \"1602.80\"\n    }\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/ModifyOCOOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "CancelOCOOrder",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\",\n    \"al_id\": \"25062400000793\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/CancelOCOOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "GetPendingGTTOrder",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetPendingGTTOrder"
+					},
+					"response": []
+				},
+				{
+					"name": "GetEnabledGTTs",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "jData={\n    \"uid\": \"{{ClientId}}\"\n}&jKey={{jKey}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{BaseUrl}}/GetEnabledGTTs"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "BaseUrl",
+			"value": "https://piconnect.flattrade.in/PiConnectAPI",
+			"type": "string"
+		},
+		{
+			"key": "ClientId",
+			"value": "FZ00066",
+			"type": "string"
+		},
+		{
+			"key": "jKey",
+			"value": "50ed1b1c88aa2f9fd3f963247a695ab1d635b6a00ff7237178d270ac7ff42ce6",
+			"type": "string"
+		}
+	]
+}
