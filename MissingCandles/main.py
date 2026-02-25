@@ -1,9 +1,9 @@
-#Api Key:     P15T5DSB
-#secret:      ea4aaff9-cac3-4ad4-a37d-78bfbbbc94b3
-ApiKey = "P15T5DSB"
-ClientId = "GJ3085"
-Password = "9899"
-QrValue = "I5FS2VTNQSCNNPGAL3OQF5FSTY"
+#Api Key:     
+#secret:      
+ApiKey = ""
+ClientId = ""
+Password = ""
+QrValue = ""
 Totp=""
 
 Server= "dbserver\\appdb,1436"
