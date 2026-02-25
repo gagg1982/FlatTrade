@@ -4,6 +4,7 @@
 
 *.bin
 **/.vs/
+.vs/
 /Common123
 /DailyRunner/Tokens/FlatTrade.AccessToken.Token.Common
 *.Common
