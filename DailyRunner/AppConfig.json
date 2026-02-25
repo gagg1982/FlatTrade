@@ -1,9 +1,13 @@
 {
     "Api": {
         "AccessTokenFilePath": "../../../Tokens/FlatTrade.AccessToken.Token.Common",
-        "Key": "36f05c4ff6134151b7a79250e3035a49",
-        "Secret": "2025.fe64cd6c846d4f6e9123461802ae50b4b377cfa4c67b100c",
+        "Key": "",
+        "Secret": "",
         "RedirectUrl": "http://localhost:9001/FlatTradeBroker/",
+        "Uid": "",
+        "Password": "", 
+        "QrCode": "",
+
         "Throttling": {
             "RateLimiter": {
                 "GlobalCallsPerSec": 20,
@@ -17,11 +21,11 @@
                     },
                     "GetQuotesAsync": {
                         "CallsPerSec": 20,
-                        "CallsPerMin": 360
+                        "CallsPerMin": 400
                     },
                     "GetLinkedScripsAsync": {
                         "CallsPerSec": 20,
-                        "CallsPerMin": 360
+                        "CallsPerMin": 400
                     }
                 }
             },
@@ -79,19 +83,19 @@
     },
 
     "StocksOhlcvGenerator": {
+        "Enabled": true,
+
         "ListOfTradingSymbols": [],
 
-        "DefaultStartDateIfMissing": 5,
+        "DefaultPastDaysIfStartDateIsMissing": 5,
         "StartDate": "",
-        "DateBatchSizeForOneMinutePrices":10,
+        "DateBatchSizeForOneMinutePrices": 10,
         "DateBatchSizeForDailyPrices": 10,
         "DailyPricesEnabled": true,
         "OneMinutePricesEnabled": true,
 
-        "Enabled": true,
-
         "WriteToFile": {
-            "Enabled": false,
+            "Enabled": true,
             "ChannelCapacity": 5000,
             "CsvFilePath": "../../../CsvData/StocksOhlcv/"
         },
@@ -103,15 +107,14 @@
     },
 
     "FillMissingOhlcv": {
-        "DefaultStartDateIfMissing": 200,
-        "StartDate": "2025-10-01",
+        "Enabled": true,
+        "DefaultPastDaysIfStartDateIsMissing": 200,
+        "StartDate": "2026-02-01",
         "DailyPricesEnabled": true,
         "OneMinutePricesEnabled": true,
 
-        "Enabled": true,
-
         "WriteToFile": {
-            "Enabled": false,
+            "Enabled": true,
             "ChannelCapacity": 5000,
             "CsvFilePath": "../../../CsvData/MissingStocksOhlcv/"
         },
@@ -125,6 +128,8 @@
     "BookKeeping": {
         "Enabled": true,
 
+        "CalculateBrokerageAndTaxesFrom": "2026-02-01",
+
         "WriteToFile": {
             "Enabled": true,
             "ChannelCapacity": 5000,
@@ -135,28 +140,7 @@
             "ChannelCapacity": 5000,
             "WriteBatchSizeInDb": 5000
         }
-    },
-
-    "CorporateActionsGenerator": {
-        "Enabled": true,
-        "StartDate": "01-01-2025",
-        "AdvanceDays": 30,
-        "ExcludedCA": [],
-
-        "NseCaUrl": "https://www.nseindia.com/api/corporates-corporateActions?index=equities&from_date=[from_date]&to_date=[to_date]",
-        "BseCaUrl": "https://www.nseindia.com/api/corporates-corporateActions?index=equities&from_date=[from_date]&to_date=[to_date]",
-
-        "WriteToFile": {
-            "Enabled": true,
-            "ChannelCapacity": 5,
-            "CsvFilePath": "../../../CsvData/CorporateActionsGenerator/"
-        },
-        "WriteToDb": {
-            "Enabled": true,
-            "ChannelCapacity": 5,
-            "WriteBatchSizeInDb": 50000
-        }
-    },
+    },    
 
     "Serilog": {
         "Using": [

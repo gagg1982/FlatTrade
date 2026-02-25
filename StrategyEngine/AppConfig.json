@@ -1,9 +1,12 @@
 {
     "Api": {
         "AccessTokenFilePath": "../../../Tokens/FlatTrade.AccessToken.Token.Common",
-        "Key": "36f05c4ff6134151b7a79250e3035a49",
-        "Secret": "2025.fe64cd6c846d4f6e9123461802ae50b4b377cfa4c67b100c",
-        "RedirectUrl": "http://localhost:9001/FlatTradeBroker/"
+        "Key": "",
+        "Secret": "",
+        "RedirectUrl": "http://localhost:9001/FlatTradeBroker/",
+        "Uid": "",
+        "Password": "",
+        "QrCode": ""
     },
     "Database": {
         "ConnectionString": "Server=dbserver\\appdb,1436;Database=TradingApplication;Integrated Security = True; TrustServerCertificate=True;"
@@ -31,7 +34,7 @@
         "CsvFilePathPrefix": "../../../CsvData/StocksOhlcv",
         "ListOfTradingSymbols": [],
         "ChannelCapacity": 5000,
-        "DefaultStartDateIfMissing": 5,
+        "DefaultPastDaysIfStartDateIsMissing": 5,
         "StartDate": "",
         "OneMinutePricesEnabled": true,
         "DateBatchSizeForOneMinutePrices": 10,

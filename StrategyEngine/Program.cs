@@ -35,14 +35,20 @@ var loggerFactory = new LoggerFactory().AddSerilog(Log.Logger, dispose:true);
 var throttler = new RateLimiterThrottleInterceptor(config, loggerFactory);
 
 //=====================================================================
+string key = Environment.GetEnvironmentVariable("FlateTrade_Key") ?? string.Empty;
+string secret = Environment.GetEnvironmentVariable("FlateTrade_Secret") ?? string.Empty;
+string uid = Environment.GetEnvironmentVariable("FlateTrade_Uid") ?? string.Empty;
+string password = Environment.GetEnvironmentVariable("FlateTrade_Password") ?? string.Empty;
+string qrCode = Environment.GetEnvironmentVariable("FlateTrade_QrCode") ?? string.Empty;
+//=====================================================================
 
-Api api = new(config["Api:Key"] ?? string.Empty,
+Api api = new(key,
               config["Api:RedirectUrl"] ?? string.Empty,
-              config["Api:Secret"] ?? string.Empty,
+              secret,
               config["Api:AccessTokenFilePath"] ?? string.Empty,
-              config["Api:Uid"] ?? string.Empty,
-              config["Api:Password"] ?? string.Empty,
-              config["Api:QrCode"] ?? string.Empty,
+              uid,
+              password,
+              qrCode,
               loggerFactory,
               throttler);
 
