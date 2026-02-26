@@ -14,5 +14,5 @@
 **/obj/
 **/__pycache__/
 **/Logs/
-**/*.csv/
+**/*.csv
 /Common_latest
